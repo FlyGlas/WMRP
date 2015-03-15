@@ -66,6 +66,10 @@
 //#define OPAMP_T_GRIP_GAIN   2
 //#define OPAMP_I_HEATER_GAIN 2.2
 
+//EEPROM ADDRESS
+#define EEPROM_ADDRESS_TEMP_START 0
+#define EEPROM_ADDRESS_TEMP_END   1
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "TimerOne.h"
@@ -403,7 +407,7 @@ void setup()
   delay(100);
   adc_current_heater_offset = analogRead(PIN_ADC_I_HEATER); //read adc offset for current measurement @ I_HEATER = 0 A
 
-  temp_setpoint = EEPROM.read(0) | (((int) EEPROM.read(1)) << 8); //read eeprom
+  temp_setpoint = EEPROM.read(EEPROM_ADDRESS_TEMP_START) | (((int) EEPROM.read(EEPROM_ADDRESS_TEMP_END)) << 8); //read eeprom
   temp_setpoint_old = temp_setpoint;
 
   enc.write(temp_setpoint);   //set encoder value to temp_setpoint
@@ -445,8 +449,8 @@ void loop()
   if (timer_eeprom.over(TIME_EEPROM_WRITE_MS)) {
     //here comes the eeprom write
     if (temp_setpoint != temp_setpoint_old) {
-      EEPROM.write(0, temp_setpoint & 0xff);
-      EEPROM.write(1, (temp_setpoint & 0xff00) >> 8);
+      EEPROM.write(EEPROM_ADDRESS_TEMP_START, temp_setpoint & 0xff);
+      EEPROM.write(EEPROM_ADDRESS_TEMP_END, (temp_setpoint & 0xff00) >> 8);
       temp_setpoint_old = temp_setpoint;
       if (DEBUG) {
         Serial.println("Write EEPROM...");
