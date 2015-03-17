@@ -7,6 +7,8 @@
 #define PIN_ROT_B        7//6
 #define PIN_ROT_SW       4
 
+#define DEBUG_LED        6
+
 //ADC INPUT PINS
 #define PIN_ADC_T_GRIP   A1
 #define PIN_ADC_T_TIP    A0
@@ -30,7 +32,7 @@
 #define DELAY_BEFORE_MEASURE_MS 50
 #define TIME_SW_POLL_MS         10
 #define TIME_TUI_MEAS_MS        100
-#define TIME_SERIAL_MS          1000
+#define TIME_SERIAL_MS          3000
 #define TIME_LCD_MS             500
 #define TIME_CYCLECOUNT_MS      1000
 #define TIME_EEPROM_WRITE_MS    10000
@@ -69,6 +71,13 @@
 //EEPROM ADDRESS
 #define EEPROM_ADDRESS_TEMP_START 0
 #define EEPROM_ADDRESS_TEMP_END   1
+#define EEPROM_ADDRESS_VAL1_START 2
+#define EEPROM_ADDRESS_VAL1_END   3
+#define EEPROM_ADDRESS_VAL2_START 4
+#define EEPROM_ADDRESS_VAL2_END   5
+#define EEPROM_ADDRESS_VAL3_START 6
+#define EEPROM_ADDRESS_VAL3_END   7
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -101,7 +110,10 @@ int temp_setpoint;
 int temp_setpoint_old;
 
 boolean state_switch[5];
-boolean state_switch_old[5] = {true, true, true, true};
+boolean state_switch_old[5];// = {false, true, true, true};
+byte button_count[5];
+
+boolean meas_flag;
 
 //variables for cycle count
 int cycle;
@@ -216,14 +228,18 @@ class timer_over {
         return false;
       }
     }
+    boolean set_timer() {
+      this->_last_time = millis();
+    }
 };
-//timer_over class constructors
+//timer_over class members
 timer_over timer_meas;
 timer_over timer_serial;
 timer_over timer_lcd;
 timer_over timer_switch;
 timer_over timer_cyclecount;
 timer_over timer_eeprom;
+timer_over timer_delay_before_measure;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //FUNCTIONS
@@ -273,23 +289,7 @@ void draw_bar(int value, byte numCols, int maxValue) {
 
 
 void update_measurments() {
-
-  Timer1.setPwmDuty(PIN_HEATER, 0); //stop heating
-  delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap
-  adc_temperature_tip_relative = analogRead(PIN_ADC_T_TIP);
-  adc_temperature_grip = analogRead(PIN_ADC_T_GRIP);
-  adc_voltage_input = analogRead(PIN_ADC_U_IN);
-  adc_current_heater = analogRead(PIN_ADC_I_HEATER);
-  Timer1.setPwmDuty(PIN_HEATER, pwm_value); //set pwm back to old value
-
-  //calculate SI values form the adc value
-  temperature_tip_relative = adc_to_t_tip_calc(adc_temperature_tip_relative);           //temperature in grad celsius divide with 1000
-  temperature_grip = adc_to_t_grip_calc(adc_temperature_grip);                          //temperature in grad celsius divide with 1000
-  voltage_input = adc_to_u_in_calc(adc_voltage_input);                                  //voltage in volt divide with 10^6
-  current_heater = adc_to_i_heater_calc(adc_current_heater, adc_current_heater_offset); //current in volt divide with 10^6
-
-  //calculate real tip temperature as sum of thermo couple temperature and cold junction temperature
-  temperature_tip_absolute = temperature_tip_relative + temperature_grip;
+  //empty
 }
 
 
@@ -369,6 +369,34 @@ void  serial_draw_line() {
   Serial.println("--------------------------------------");
 }
 
+int eeprom_read_int(int addr) {
+  int value = EEPROM.read(addr) | (((int) EEPROM.read(addr + 1)) << 8);
+  if (DEBUG) {
+    Serial.print("Read from EEPROM Address: ");
+    Serial.print(addr);
+    Serial.print("/");
+    Serial.println(addr + 1);
+    Serial.print("Value: ");
+    Serial.println(value);
+    serial_draw_line();
+  }
+  return value;
+}
+
+void eeprom_write_int(int addr, int value) {
+  EEPROM.write(addr, value & 0xff);
+  EEPROM.write(addr + 1, (value & 0xff00) >> 8);
+
+  if (DEBUG) {
+    Serial.print("Write to EEPROM Address: ");
+    Serial.print(addr);
+    Serial.print("/");
+    Serial.println(addr + 1);
+    Serial.print("Value: ");
+    Serial.println(value);
+    serial_draw_line();
+  }
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //SETUP ROUTINE
@@ -378,6 +406,9 @@ void setup()
   //OUTPUT PINS
   pinMode(PIN_HEATER, OUTPUT);
   pinMode(PIN_STAND, OUTPUT);
+
+  pinMode(DEBUG_LED, OUTPUT);
+
 
   //DIGITAL INPUT PINS
   pinMode(PIN_SW_1, INPUT);
@@ -407,7 +438,7 @@ void setup()
   delay(100);
   adc_current_heater_offset = analogRead(PIN_ADC_I_HEATER); //read adc offset for current measurement @ I_HEATER = 0 A
 
-  temp_setpoint = EEPROM.read(EEPROM_ADDRESS_TEMP_START) | (((int) EEPROM.read(EEPROM_ADDRESS_TEMP_END)) << 8); //read eeprom
+  temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_TEMP_START); //read eeprom
   temp_setpoint_old = temp_setpoint;
 
   enc.write(temp_setpoint);   //set encoder value to temp_setpoint
@@ -436,6 +467,9 @@ void isr_routine()
 
 void loop()
 {
+  digitalWrite(DEBUG_LED, !digitalRead(DEBUG_LED));
+
+
   if (timer_cyclecount.over(TIME_CYCLECOUNT_MS)) {
     //here comes the cycles per second count
     last_cycle = cycle;
@@ -449,21 +483,40 @@ void loop()
   if (timer_eeprom.over(TIME_EEPROM_WRITE_MS)) {
     //here comes the eeprom write
     if (temp_setpoint != temp_setpoint_old) {
-      EEPROM.write(EEPROM_ADDRESS_TEMP_START, temp_setpoint & 0xff);
-      EEPROM.write(EEPROM_ADDRESS_TEMP_END, (temp_setpoint & 0xff00) >> 8);
+      eeprom_write_int(EEPROM_ADDRESS_TEMP_START, temp_setpoint);
       temp_setpoint_old = temp_setpoint;
-      if (DEBUG) {
-        Serial.println("Write EEPROM...");
-        serial_draw_line();
-      }
     }
   }
 
 
   if (timer_meas.over(TIME_TUI_MEAS_MS)) {
-    //here comes the measurement and pid calculation
-    update_measurments();
-    //limit temp_setpoint to 0 ... MAX_TARGET_TEMP_DEG
+    //here comes the start of the measurement
+    Timer1.setPwmDuty(PIN_HEATER, 0);        //stop heating
+    meas_flag = true;                        //set meas_flag
+    timer_delay_before_measure.set_timer();   //set delay timer to actual time
+    //if (DEBUG) {Serial.print("S: "); Serial.println(millis()); }
+  }
+
+
+  if (timer_delay_before_measure.over(DELAY_BEFORE_MEASURE_MS) && meas_flag) {
+    meas_flag = false;
+    //delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap
+    adc_temperature_tip_relative = analogRead(PIN_ADC_T_TIP);
+    adc_temperature_grip         = analogRead(PIN_ADC_T_GRIP);
+    adc_voltage_input            = analogRead(PIN_ADC_U_IN);
+    adc_current_heater           = analogRead(PIN_ADC_I_HEATER);
+    Timer1.setPwmDuty(PIN_HEATER, pwm_value); //set pwm back to old value
+    //if (DEBUG) {Serial.print("E: "); Serial.println(millis()); }
+
+    //calculate SI values form the adc value
+    temperature_tip_relative = adc_to_t_tip_calc(adc_temperature_tip_relative);                     //temperature in grad celsius divide with 1000
+    temperature_grip         = adc_to_t_grip_calc(adc_temperature_grip);                            //temperature in grad celsius divide with 1000
+    voltage_input            = adc_to_u_in_calc(adc_voltage_input);                                 //voltage in volt divide with 10^6
+    current_heater           = adc_to_i_heater_calc(adc_current_heater, adc_current_heater_offset); //current in volt divide with 10^6
+
+    //calculate real tip temperature as sum of thermo couple temperature and cold junction temperature
+    temperature_tip_absolute = temperature_tip_relative + temperature_grip;
+
     //temp_setpoint = constrain(temp_setpoint, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
     pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
     Timer1.setPwmDuty(PIN_HEATER, pwm_value);
@@ -507,7 +560,6 @@ void loop()
     lcd.print(temp_setpoint, 0);
     lcd.write(byte(6));
 
-
     //second line
     //pwm in percent (0,1,2), % (3), blank (4), bargraph (5-15)
     pwm_percent = map(pwm_value, 0, PWM_MAX_VALUE, 0, 100);
@@ -524,32 +576,53 @@ void loop()
 
   if (timer_switch.over(TIME_SW_POLL_MS)) {
     //here comes the switch reading
-    state_switch[0] = digitalRead(PIN_SW_1);
-    state_switch[1] = digitalRead(PIN_SW_2);
-    state_switch[2] = digitalRead(PIN_SW_3);
-    state_switch[3] = digitalRead(PIN_ROT_SW);
+    state_switch[0] = !digitalRead(PIN_SW_1);
+    state_switch[1] = !digitalRead(PIN_SW_2);
+    state_switch[2] = !digitalRead(PIN_SW_3);
+    state_switch[3] = !digitalRead(PIN_ROT_SW);
 
-    if (!state_switch[0] && state_switch_old[0]) {
-      if (DEBUG) {
-        Serial.println("Switch 1 rising edge...");
-        serial_draw_line();
+    if (state_switch[0] && state_switch_old[0]) {
+      if (button_count[0] == 100) {
+        eeprom_write_int(EEPROM_ADDRESS_VAL1_START, temp_setpoint);  //safe temperature value to eeprom if buttonCount is equal 100
       }
-      temp_setpoint = 300;
+      button_count[0]++;          //count up if button is and was pushed
     }
-    if (!state_switch[1] && state_switch_old[1]) {
-      if (DEBUG) {
-        Serial.println("Switch 2 rising edge...");
-        serial_draw_line();
+    else {
+      if (!state_switch[0] && state_switch_old[0]) {                 //detect falling edge, releasing the button
+        temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL1_START);  //read temp from eeeprom
       }
-      temp_setpoint = 350;
+      button_count[0] = 0;                                              //resett counter
     }
-    if (!state_switch[2] && state_switch_old[2]) {
-      if (DEBUG) {
-        Serial.println("Switch 3 rising edge...");
-        serial_draw_line();
+
+
+    if (state_switch[1] && state_switch_old[1]) {
+      if (button_count[1] == 100) {
+        eeprom_write_int(EEPROM_ADDRESS_VAL2_START, temp_setpoint);  //safe temperature value to eeprom if buttonCount is equal 100
       }
-      temp_setpoint = 400;
+      button_count[1]++;          //count up if button is and was pushed
     }
+    else {
+      if (!state_switch[1] && state_switch_old[1]) {                 //detect falling edge, releasing the button
+        temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL2_START);  //read temp from eeeprom
+      }
+      button_count[1] = 0;                                              //resett counter
+    }
+
+
+    if (state_switch[2] && state_switch_old[2]) {
+      if (button_count[2] == 100) {
+        eeprom_write_int(EEPROM_ADDRESS_VAL3_START, temp_setpoint);  //safe temperature value to eeprom if buttonCount is equal 100
+      }
+      button_count[2]++;          //count up if button is and was pushed
+    }
+    else {
+      if (!state_switch[2] && state_switch_old[2]) {                 //detect falling edge, releasing the button
+        temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL3_START);  //read temp from eeeprom
+      }
+      button_count[2] = 0;                                              //resett counter
+    }
+
+
     if (!state_switch[3] && state_switch_old[3]) {
       if (DEBUG) {
         Serial.println("Switch Rotary rising edge...");
@@ -558,7 +631,7 @@ void loop()
     }
 
     enc.write(temp_setpoint); //set encoder value to temp_setpoint
-    memcpy(&state_switch_old, &state_switch, sizeof(state_switch));
+    memcpy(&state_switch_old, &state_switch, sizeof(state_switch)); // save values
   }
 
 
