@@ -32,10 +32,10 @@
 #define DELAY_BEFORE_MEASURE_MS 50
 #define TIME_SW_POLL_MS         10
 #define TIME_TUI_MEAS_MS        100
-#define TIME_SERIAL_MS          3000
+#define TIME_SERIAL_MS          500
 #define TIME_LCD_MS             500
 #define TIME_CYCLECOUNT_MS      1000
-#define TIME_EEPROM_WRITE_MS    10000
+#define TIME_EEPROM_WRITE_MS    30000
 
 //PID CONTROL
 #define CNTRL_P_GAIN 0
@@ -108,6 +108,7 @@ int pwm_value;
 byte pwm_percent;
 int temp_setpoint;
 int temp_setpoint_old;
+int encoder_value;
 
 boolean state_switch[5];
 boolean state_switch_old[5];// = {false, true, true, true};
@@ -371,6 +372,7 @@ void  serial_draw_line() {
 
 int eeprom_read_int(int addr) {
   int value = EEPROM.read(addr) | (((int) EEPROM.read(addr + 1)) << 8);
+  value = constrain(value, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
   if (DEBUG) {
     Serial.print("Read from EEPROM Address: ");
     Serial.print(addr);
@@ -590,6 +592,7 @@ void loop()
     else {
       if (!state_switch[0] && state_switch_old[0]) {                 //detect falling edge, releasing the button
         temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL1_START);  //read temp from eeeprom
+        enc.write(temp_setpoint);
       }
       button_count[0] = 0;                                              //resett counter
     }
@@ -598,12 +601,14 @@ void loop()
     if (state_switch[1] && state_switch_old[1]) {
       if (button_count[1] == 100) {
         eeprom_write_int(EEPROM_ADDRESS_VAL2_START, temp_setpoint);  //safe temperature value to eeprom if buttonCount is equal 100
+        enc.write(temp_setpoint);
       }
       button_count[1]++;          //count up if button is and was pushed
     }
     else {
       if (!state_switch[1] && state_switch_old[1]) {                 //detect falling edge, releasing the button
         temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL2_START);  //read temp from eeeprom
+        enc.write(temp_setpoint);
       }
       button_count[1] = 0;                                              //resett counter
     }
@@ -618,6 +623,7 @@ void loop()
     else {
       if (!state_switch[2] && state_switch_old[2]) {                 //detect falling edge, releasing the button
         temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL3_START);  //read temp from eeeprom
+        enc.write(temp_setpoint);
       }
       button_count[2] = 0;                                              //resett counter
     }
@@ -630,15 +636,18 @@ void loop()
       }
     }
 
-    enc.write(temp_setpoint); //set encoder value to temp_setpoint
     memcpy(&state_switch_old, &state_switch, sizeof(state_switch)); // save values
   }
 
 
   if (1) {
     //here comes the rotary encoder reading (every loop)
-    temp_setpoint = enc.read(); //read rotary encoder
-    temp_setpoint = constrain(temp_setpoint, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
+    encoder_value = enc.read();
+    if (abs(temp_setpoint - encoder_value) >= 4) {
+      temp_setpoint = temp_setpoint + (encoder_value - temp_setpoint) / 4; //read rotary encoder
+      temp_setpoint = constrain(temp_setpoint, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
+      enc.write(temp_setpoint);
+    }
   }
 }
 
