@@ -123,7 +123,7 @@ byte button_count[5];
 boolean meas_flag;
 
 boolean stand_flag;
-boolean in_stand;
+boolean status_stand;
 
 //variables for cycle count
 int cycle;
@@ -288,7 +288,8 @@ void draw_bar(int value, byte numCols, int maxValue) {
           ++fullChars;
       }
     }
-    for (byte i = fullChars; i < lastFullChars; i++) {
+    //for (byte i = fullChars; i < lastFullChars; i++) {
+    for (byte i = fullChars; i < numCols; i++) {
       lcd.write(' ');
     }
 
@@ -523,10 +524,10 @@ void loop()
       digitalWrite(PIN_STAND, 1);
       delay(DELAY_BEFORE_STAND_MS);
       if (analogRead(PIN_ADC_STAND) < THRESHOLD_STAND) {
-        in_stand = 1;
+        status_stand = 1;
       }
       else {
-        in_stand = 0;
+        status_stand = 0;
       }
       digitalWrite(PIN_STAND, 0);
     }
@@ -543,7 +544,12 @@ void loop()
     temperature_tip_absolute = temperature_tip_relative + temperature_grip;
 
     //temp_setpoint = constrain(temp_setpoint, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
-    pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+    if (status_stand == 1) {
+      pwm_value = calculate_pid(STDBY_TEMP_DEG, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+    }
+    else {
+      pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+    }
     Timer1.setPwmDuty(PIN_HEATER, pwm_value);
     //Serial.println("Timer over...");
   }
@@ -565,6 +571,8 @@ void loop()
     Serial.println(temp_setpoint);
     Serial.print("PWM:                 ");
     Serial.println(pwm_value);
+    Serial.print("Status Stand:        ");
+    Serial.println(status_stand);
     Serial.print("Cycles per sec:      ");
     Serial.println(last_cycle);
     serial_draw_line();
@@ -582,13 +590,21 @@ void loop()
     lcd.print(int(temperature_tip_absolute / 1000));
     lcd.write(byte(6));
 
+    lcd.setCursor(5, 0); //Start at character 6 on line 0
+    lcd.print(" ");
+
     lcd.setCursor(6, 0); //Start at character 6 on line 0
     lcd.write(byte(7));
-    lcd.print(temp_setpoint);
+    if (status_stand == 1) {
+      lcd.print(STDBY_TEMP_DEG);
+    }
+    else {
+      lcd.print(temp_setpoint);
+    }
     lcd.write(byte(6));
 
     lcd.setCursor(12, 0); //Start at character 6 on line 0
-    if (in_stand == 1) {
+    if (status_stand == 1) {
       lcd.print("IDLE");
     }
     else {
