@@ -1,18 +1,19 @@
 // some preprocessor defines
 //DIGITAL INPUT PINS
+// Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
 #define PIN_SW_1         12
-#define PIN_SW_2         5
+#define PIN_SW_2         3//5
 #define PIN_SW_3         9
 #define PIN_ROT_A        8
 #define PIN_ROT_B        7//6
 #define PIN_ROT_SW       4
 
-#define DEBUG_LED        6
+#define DEBUG_LED        2//6
 
 //ADC INPUT PINS
 #define PIN_ADC_T_GRIP   A1
 #define PIN_ADC_T_TIP    A0
-#define PIN_ADC_U_IN     A4
+#define PIN_ADC_U_IN     A0//A4
 #define PIN_ADC_I_HEATER A3
 #define PIN_ADC_STAND    A2
 
@@ -85,7 +86,7 @@
 #include <EEPROM.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
+LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
 #include <Encoder.h>
 Encoder enc(PIN_ROT_A, PIN_ROT_B);
 
@@ -115,6 +116,7 @@ boolean state_switch_old[5];// = {false, true, true, true};
 byte button_count[5];
 
 boolean meas_flag;
+boolean stand_flag;
 
 //variables for cycle count
 int cycle;
@@ -554,13 +556,28 @@ void loop()
     //"temperature symbol (0), temp_tip_abs (1,2,3), grad celsius symbol (4), blank (5), setpoint symbol (6), temp_set (7,8,9), grad celsius symbol (10)"
     lcd.setCursor(0, 0); //Start at character 0 on line 0
     lcd.write(byte(5));
-    lcd.print(temperature_tip_absolute / 1000, 0);
+    if (int(temperature_tip_absolute / 1000) < 10)   lcd.print(" ");
+    if (int(temperature_tip_absolute / 1000) < 100)  lcd.print(" ");
+    lcd.print(int(temperature_tip_absolute / 1000));
     lcd.write(byte(6));
 
     lcd.setCursor(6, 0); //Start at character 6 on line 0
     lcd.write(byte(7));
-    lcd.print(temp_setpoint, 0);
+    lcd.print(temp_setpoint);
     lcd.write(byte(6));
+
+    lcd.setCursor(12, 0); //Start at character 6 on line 0
+    if (stand_flag == 1) {
+      lcd.print("IDLE");
+    }
+    else {
+      if (pwm_value == 0) {
+        lcd.print("COOL");
+      }
+      else {
+        lcd.print("HEAT");
+      }
+    }
 
     //second line
     //pwm in percent (0,1,2), % (3), blank (4), bargraph (5-15)
