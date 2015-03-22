@@ -13,7 +13,7 @@
 //ADC INPUT PINS
 #define PIN_ADC_T_GRIP   A1
 #define PIN_ADC_T_TIP    A0
-#define PIN_ADC_U_IN     A0//A4
+#define PIN_ADC_U_IN     A4
 #define PIN_ADC_I_HEATER A3
 #define PIN_ADC_STAND    A2
 
@@ -37,6 +37,11 @@
 #define TIME_LCD_MS             500
 #define TIME_CYCLECOUNT_MS      1000
 #define TIME_EEPROM_WRITE_MS    30000
+#define TIME_STAND_MS           1000
+#define DELAY_BEFORE_STAND_MS   5
+
+//THRESHOLDS
+#define THRESHOLD_STAND 300
 
 //PID CONTROL
 #define CNTRL_P_GAIN 0
@@ -45,7 +50,7 @@
 
 //TEMPERATURES
 #define STDBY_TEMP_DEG      150
-#define MIN_TARGET_TEMP_DEG 100
+#define MIN_TARGET_TEMP_DEG 150
 #define MAX_TARGET_TEMP_DEG 450
 
 //PWM MAX
@@ -116,7 +121,9 @@ boolean state_switch_old[5];// = {false, true, true, true};
 byte button_count[5];
 
 boolean meas_flag;
+
 boolean stand_flag;
+boolean in_stand;
 
 //variables for cycle count
 int cycle;
@@ -243,6 +250,7 @@ timer_over timer_switch;
 timer_over timer_cyclecount;
 timer_over timer_eeprom;
 timer_over timer_delay_before_measure;
+timer_over timer_stand;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //FUNCTIONS
@@ -495,8 +503,8 @@ void loop()
 
   if (timer_meas.over(TIME_TUI_MEAS_MS)) {
     //here comes the start of the measurement
-    Timer1.setPwmDuty(PIN_HEATER, 0);        //stop heating
-    meas_flag = true;                        //set meas_flag
+    Timer1.setPwmDuty(PIN_HEATER, 0);         //stop heating
+    meas_flag = true;                         //set meas_flag
     timer_delay_before_measure.set_timer();   //set delay timer to actual time
     //if (DEBUG) {Serial.print("S: "); Serial.println(millis()); }
   }
@@ -509,8 +517,21 @@ void loop()
     adc_temperature_grip         = analogRead(PIN_ADC_T_GRIP);
     adc_voltage_input            = analogRead(PIN_ADC_U_IN);
     adc_current_heater           = analogRead(PIN_ADC_I_HEATER);
+
+    //code for stand recognition....
+    if (timer_stand.over(TIME_STAND_MS)) {
+      digitalWrite(PIN_STAND, 1);
+      delay(DELAY_BEFORE_STAND_MS);
+      if (analogRead(PIN_ADC_STAND) < THRESHOLD_STAND) {
+        in_stand = 1;
+      }
+      else {
+        in_stand = 0;
+      }
+      digitalWrite(PIN_STAND, 0);
+    }
+
     Timer1.setPwmDuty(PIN_HEATER, pwm_value); //set pwm back to old value
-    //if (DEBUG) {Serial.print("E: "); Serial.println(millis()); }
 
     //calculate SI values form the adc value
     temperature_tip_relative = adc_to_t_tip_calc(adc_temperature_tip_relative);                     //temperature in grad celsius divide with 1000
@@ -567,7 +588,7 @@ void loop()
     lcd.write(byte(6));
 
     lcd.setCursor(12, 0); //Start at character 6 on line 0
-    if (stand_flag == 1) {
+    if (in_stand == 1) {
       lcd.print("IDLE");
     }
     else {
