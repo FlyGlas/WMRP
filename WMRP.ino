@@ -123,7 +123,8 @@ byte button_count[5];
 boolean meas_flag;
 
 boolean stand_flag;
-boolean status_stand;
+boolean status_stand_reed;
+boolean status_stand_manu;
 
 //variables for cycle count
 int cycle;
@@ -524,10 +525,10 @@ void loop()
       digitalWrite(PIN_STAND, 1);
       delay(DELAY_BEFORE_STAND_MS);
       if (analogRead(PIN_ADC_STAND) < THRESHOLD_STAND) {
-        status_stand = 1;
+        status_stand_reed = 1;
       }
       else {
-        status_stand = 0;
+        status_stand_reed = 0;
       }
       digitalWrite(PIN_STAND, 0);
     }
@@ -544,7 +545,7 @@ void loop()
     temperature_tip_absolute = temperature_tip_relative + temperature_grip;
 
     //temp_setpoint = constrain(temp_setpoint, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
-    if (status_stand == 1) {
+    if (status_stand_reed == 1 || status_stand_manu == 1) {
       pwm_value = calculate_pid(STDBY_TEMP_DEG, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
     }
     else {
@@ -571,8 +572,10 @@ void loop()
     Serial.println(temp_setpoint);
     Serial.print("PWM:                 ");
     Serial.println(pwm_value);
-    Serial.print("Status Stand:        ");
-    Serial.println(status_stand);
+    Serial.print("Status Stand (Reed): ");
+    Serial.println(status_stand_reed);
+    Serial.print("Status Stand (Manu): ");
+    Serial.println(status_stand_manu);
     Serial.print("Cycles per sec:      ");
     Serial.println(last_cycle);
     serial_draw_line();
@@ -595,7 +598,7 @@ void loop()
 
     lcd.setCursor(6, 0); //Start at character 6 on line 0
     lcd.write(byte(7));
-    if (status_stand == 1) {
+    if (status_stand_reed == 1 || status_stand_manu == 1) {
       lcd.print(STDBY_TEMP_DEG);
     }
     else {
@@ -604,7 +607,7 @@ void loop()
     lcd.write(byte(6));
 
     lcd.setCursor(12, 0); //Start at character 6 on line 0
-    if (status_stand == 1) {
+    if (status_stand_reed == 1 || status_stand_manu == 1) {
       lcd.print("IDLE");
     }
     else {
@@ -684,10 +687,7 @@ void loop()
 
 
     if (!state_switch[3] && state_switch_old[3]) {
-      if (DEBUG) {
-        Serial.println("Switch Rotary rising edge...");
-        serial_draw_line();
-      }
+      status_stand_manu = !status_stand_manu;
     }
 
     memcpy(&state_switch_old, &state_switch, sizeof(state_switch)); // save values
