@@ -2,13 +2,13 @@
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
 #define PIN_SW_1         12
-#define PIN_SW_2         3//5
+#define PIN_SW_2         5
 #define PIN_SW_3         9
 #define PIN_ROT_A        8
-#define PIN_ROT_B        7//6
+#define PIN_ROT_B        6
 #define PIN_ROT_SW       4
 
-#define DEBUG_LED        2//6
+#define DEBUG_LED        11 // STATUS_LED
 
 //ADC INPUT PINS
 #define PIN_ADC_T_GRIP   A1
@@ -54,7 +54,7 @@
 #define MAX_TARGET_TEMP_DEG 450
 
 //PWM MAX
-#define PWM_MAX_VALUE       1024
+#define PWM_MAX_VALUE       1023
 
 //ADC TO TEMP CONVVERSION
 #define ADC_TO_T_TIP_A0  -1176200 //inverse function: t[*C] = - 1176.2 + 3.34 * SQRT(14978 * U[mV] + 130981)
