@@ -29,8 +29,8 @@
 //#define PIN_TXO        1
 
 //TIMES
-#define TIMER1_PERIOD_US        500
-#define DELAY_BEFORE_MEASURE_MS 50
+#define TIMER1_PERIOD_US        50
+#define DELAY_BEFORE_MEASURE_MS 10
 #define TIME_SW_POLL_MS         10
 #define TIME_TUI_MEAS_MS        100
 #define TIME_SERIAL_MS          500
@@ -44,8 +44,8 @@
 #define THRESHOLD_STAND 300
 
 //PID CONTROL
-#define CNTRL_P_GAIN 0
-#define CNTRL_I_GAIN 1
+#define CNTRL_P_GAIN 40
+#define CNTRL_I_GAIN 8
 #define CNTRL_D_GAIN 0
 
 //TEMPERATURES
@@ -417,6 +417,9 @@ void eeprom_write_int(int addr, int value) {
 
 void setup()
 {
+  //USE EXTERNAL AREF
+  analogReference(EXTERNAL);
+
   //OUTPUT PINS
   pinMode(PIN_HEATER, OUTPUT);
   pinMode(PIN_STAND, OUTPUT);
@@ -505,6 +508,8 @@ void loop()
 
   if (timer_meas.over(TIME_TUI_MEAS_MS)) {
     //here comes the start of the measurement
+    adc_current_heater = analogRead(PIN_ADC_I_HEATER);
+
     Timer1.setPwmDuty(PIN_HEATER, 0);         //stop heating
     meas_flag = true;                         //set meas_flag
     timer_delay_before_measure.set_timer();   //set delay timer to actual time
@@ -518,7 +523,7 @@ void loop()
     adc_temperature_tip_relative = analogRead(PIN_ADC_T_TIP);
     adc_temperature_grip         = analogRead(PIN_ADC_T_GRIP);
     adc_voltage_input            = analogRead(PIN_ADC_U_IN);
-    adc_current_heater           = analogRead(PIN_ADC_I_HEATER);
+    //adc_current_heater           = analogRead(PIN_ADC_I_HEATER);
 
     //code for stand recognition....
     if (timer_stand.over(TIME_STAND_MS)) {
@@ -578,6 +583,11 @@ void loop()
     Serial.println(status_stand_manu);
     Serial.print("Cycles per sec:      ");
     Serial.println(last_cycle);
+    Serial.print("ADC current:         ");
+    Serial.println(adc_current_heater);
+    Serial.print("ADC current offset:  ");
+    Serial.println(adc_current_heater_offset);
+
     serial_draw_line();
   }
 
