@@ -39,9 +39,11 @@
 #define TIME_EEPROM_WRITE_MS    30000
 #define TIME_STAND_MS           1000
 #define DELAY_BEFORE_STAND_MS   5
+#define TIME_ERROR_MS           50
 
 //THRESHOLDS
-#define THRESHOLD_STAND 300
+#define THRESHOLD_STAND         300
+#define ERROR_COUNTER_THRESHOLD 10
 
 //PID CONTROL
 #define CNTRL_P_GAIN 40
@@ -111,6 +113,7 @@ long    current_heater;
 
 int adc_current_heater_offset;
 int pwm_value;
+int pwm_value_mean;
 byte pwm_percent;
 int temp_setpoint;
 int temp_setpoint_old;
@@ -125,6 +128,11 @@ boolean meas_flag;
 boolean stand_flag;
 boolean status_stand_reed;
 boolean status_stand_manu;
+
+boolean temp_flag;
+boolean error_tip;
+boolean no_tip;
+byte error_counter;
 
 //variables for cycle count
 int cycle;
@@ -252,6 +260,7 @@ timer_over timer_cyclecount;
 timer_over timer_eeprom;
 timer_over timer_delay_before_measure;
 timer_over timer_stand;
+timer_over timer_error_chk;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //FUNCTIONS
@@ -326,17 +335,19 @@ int calculate_pid(int setpoint, int input, float kp, float ki, float kd, int sam
   // compute all the working error variables
   error = setpoint - input;
 
-  // (i)ntegral
-  iterm += (ki * error);
-
-  if (iterm > out_max) iterm = out_max;
-  else if (iterm < out_min) iterm = out_min;
-
   // (d)erivative
   dterm = kd * (input - last_input);
 
   // (p)roportional
   pterm = kp * error;
+
+  // (i)ntegral with anti wind up
+  if ((dterm + pterm + iterm) <= out_max) {
+    iterm += (ki * error);
+  }
+
+  if (iterm > out_max) iterm = out_max;
+  else if (iterm < out_min) iterm = out_min;
 
   // compute PID output
   output = pterm + iterm - dterm;
@@ -556,7 +567,22 @@ void loop()
     else {
       pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
     }
+
+    //no heating when error event occoured
+    if (error_tip || no_tip) {
+      pwm_value = 0;
+    }
+
     Timer1.setPwmDuty(PIN_HEATER, pwm_value);
+
+
+    //pwm value for lcd
+    if (pwm_value < PWM_MAX_VALUE / 2) {
+      pwm_value_mean = 9 * pwm_value_mean / 10 + 1 * pwm_value / 10;
+    }
+    else {
+      pwm_value_mean = 1 * pwm_value_mean / 10 + 9 * pwm_value / 10;
+    }
     //Serial.println("Timer over...");
   }
 
@@ -583,10 +609,15 @@ void loop()
     Serial.println(status_stand_manu);
     Serial.print("Cycles per sec:      ");
     Serial.println(last_cycle);
-    Serial.print("ADC current:         ");
-    Serial.println(adc_current_heater);
-    Serial.print("ADC current offset:  ");
-    Serial.println(adc_current_heater_offset);
+    Serial.print("Error Tip:           ");
+    Serial.println(error_tip);
+    Serial.print("No Tip:              ");
+    Serial.println(no_tip);
+    Serial.print("Temp flag:           ");
+    Serial.println(temp_flag);
+    Serial.print("Error counter:       ");
+    Serial.println(error_counter);
+
 
     serial_draw_line();
   }
@@ -617,16 +648,21 @@ void loop()
     lcd.write(byte(6));
 
     lcd.setCursor(12, 0); //Start at character 6 on line 0
-    if (status_stand_reed == 1 || status_stand_manu == 1) {
-      lcd.print("IDLE");
-    }
-    else {
-      if (pwm_value == 0) {
-        lcd.print("COOL");
+    if (error_tip == false) {
+      if (status_stand_reed == 1 || status_stand_manu == 1) {
+        lcd.print("IDLE");
       }
       else {
-        lcd.print("HEAT");
+        if (pwm_value == 0) {
+          lcd.print("COOL");
+        }
+        else {
+          lcd.print("HEAT");
+        }
       }
+    }
+    else {
+      lcd.print("ERR ");
     }
 
     //second line
@@ -702,6 +738,39 @@ void loop()
 
     memcpy(&state_switch_old, &state_switch, sizeof(state_switch)); // save values
   }
+
+
+
+  if (timer_error_chk.over(TIME_ERROR_MS)) {
+
+    if (adc_temperature_tip_relative > 100 && temp_flag == false) { 	//set temp_flag = true after adc_temperature_tip_relative > 100
+      temp_flag = true;
+    }
+
+    if (adc_temperature_tip_relative < 30) {
+      if (temp_flag == true) { 			                  //adc_temperature_tip_relative < 30 but was > 100 before
+        error_tip = true;
+      }
+      else {						         //adc_temperature_tip_relative < 30 and never before > 100
+        error_counter++;
+        if (error_counter > ERROR_COUNTER_THRESHOLD) { 		//error after x cycles without adc_temperature_tip_relative > 100
+          error_tip = true;
+          error_counter = 0;
+        }
+      }
+    }
+    else {
+      //error_tip = false;
+    }
+    if (adc_temperature_tip_relative > 900) {
+      no_tip = true;
+      //error_tip = false;
+    }
+    else {
+      no_tip = false;
+    }
+  }
+
 
 
   if (1) {
