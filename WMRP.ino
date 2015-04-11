@@ -30,7 +30,7 @@
 
 //TIMES
 #define TIMER1_PERIOD_US        50
-#define DELAY_BEFORE_MEASURE_MS 10
+#define DELAY_BEFORE_MEASURE_MS 5
 #define TIME_SW_POLL_MS         10
 #define TIME_TUI_MEAS_MS        100
 #define TIME_SERIAL_MS          500
@@ -45,10 +45,16 @@
 #define THRESHOLD_STAND         300
 #define ERROR_COUNTER_THRESHOLD 10
 
-//PID CONTROL
-#define CNTRL_P_GAIN 40
-#define CNTRL_I_GAIN 8
-#define CNTRL_D_GAIN 0
+//PID CONTROL - SOLDERING
+#define CNTRL_P_GAIN 40.0
+#define CNTRL_I_GAIN 8.0
+#define CNTRL_D_GAIN 0.0
+
+//PID CONTROL - TARGET TEMP, PWM < 10%
+#define BAND_TARGET_TEMP_GRAD 7
+#define BAND_P_GAIN 6.0
+#define BAND_I_GAIN 3.0
+#define BAND_D_GAIN 0.0
 
 //TEMPERATURES
 #define STDBY_TEMP_DEG      150
@@ -520,6 +526,7 @@ void loop()
   if (timer_meas.over(TIME_TUI_MEAS_MS)) {
     //here comes the start of the measurement
     adc_current_heater = analogRead(PIN_ADC_I_HEATER);
+    adc_voltage_input            = analogRead(PIN_ADC_U_IN);
 
     Timer1.setPwmDuty(PIN_HEATER, 0);         //stop heating
     meas_flag = true;                         //set meas_flag
@@ -531,10 +538,17 @@ void loop()
   if (timer_delay_before_measure.over(DELAY_BEFORE_MEASURE_MS) && meas_flag) {
     meas_flag = false;
     //delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap
-    adc_temperature_tip_relative = analogRead(PIN_ADC_T_TIP);
     adc_temperature_grip         = analogRead(PIN_ADC_T_GRIP);
-    adc_voltage_input            = analogRead(PIN_ADC_U_IN);
-    //adc_current_heater           = analogRead(PIN_ADC_I_HEATER);
+    adc_temperature_tip_relative = (analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP) +
+                                    analogRead(PIN_ADC_T_TIP)) / 10;
 
     //code for stand recognition....
     if (timer_stand.over(TIME_STAND_MS)) {
@@ -565,7 +579,12 @@ void loop()
       pwm_value = calculate_pid(STDBY_TEMP_DEG, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
     }
     else {
-      pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+      if (abs(temp_setpoint - (int)(temperature_tip_absolute / 1000)) < BAND_TARGET_TEMP_GRAD && pwm_value < PWM_MAX_VALUE / 10) {
+        pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), BAND_P_GAIN, BAND_I_GAIN, BAND_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+      }
+      else {
+        pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+      }
     }
 
     //no heating when error event occoured
@@ -573,15 +592,15 @@ void loop()
       pwm_value = 0;
     }
 
-    Timer1.setPwmDuty(PIN_HEATER, pwm_value);
+    Timer1.setPwmDuty(PIN_HEATER, pwm_value);  //set pwm to new value
 
 
     //pwm value for lcd
-    if (pwm_value < PWM_MAX_VALUE / 2) {
-      pwm_value_mean = 9 * pwm_value_mean / 10 + 1 * pwm_value / 10;
+    if (pwm_value < PWM_MAX_VALUE / 3) {
+      pwm_value_mean = (8 * pwm_value_mean  + 2 * pwm_value) / 10;
     }
     else {
-      pwm_value_mean = 1 * pwm_value_mean / 10 + 9 * pwm_value / 10;
+      pwm_value_mean = (0 * pwm_value_mean + 10 * pwm_value) / 10;
     }
     //Serial.println("Timer over...");
   }
@@ -603,6 +622,8 @@ void loop()
     Serial.println(temp_setpoint);
     Serial.print("PWM:                 ");
     Serial.println(pwm_value);
+    Serial.print("PWM (mean):          ");
+    Serial.println(pwm_value_mean);
     Serial.print("Status Stand (Reed): ");
     Serial.println(status_stand_reed);
     Serial.print("Status Stand (Manu): ");
@@ -650,15 +671,15 @@ void loop()
     lcd.setCursor(12, 0); //Start at character 6 on line 0
     if (error_tip == false) {
       if (status_stand_reed == 1 || status_stand_manu == 1) {
-        lcd.print("IDLE");
+        lcd.print("STBY");
       }
       else {
-        if (pwm_value == 0) {
-          lcd.print("COOL");
-        }
-        else {
-          lcd.print("HEAT");
-        }
+        //   if (pwm_value == 0) {
+        //     lcd.print("COOL");
+        //   }
+        //   else {
+        lcd.print("HEAT");
+        //   }
       }
     }
     else {
@@ -667,7 +688,7 @@ void loop()
 
     //second line
     //pwm in percent (0,1,2), % (3), blank (4), bargraph (5-15)
-    pwm_percent = map(pwm_value, 0, PWM_MAX_VALUE, 0, 100);
+    pwm_percent = map(pwm_value_mean, 0, PWM_MAX_VALUE, 0, 100);
     lcd.setCursor(0, 1); //Start at character 0 on line 1
     if (pwm_percent < 10)  lcd.print(" ");
     if (pwm_percent < 100) lcd.print(" ");
