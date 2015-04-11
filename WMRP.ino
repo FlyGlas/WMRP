@@ -46,12 +46,13 @@
 #define ERROR_COUNTER_THRESHOLD 10
 
 //PID CONTROL - SOLDERING
-#define CNTRL_P_GAIN 40.0
+#define CNTRL_P_GAIN 50.0
 #define CNTRL_I_GAIN 8.0
 #define CNTRL_D_GAIN 0.0
 
 //PID CONTROL - TARGET TEMP, PWM < 10%
 #define BAND_TARGET_TEMP_GRAD 7
+#define BAND_MAX_PWM_PERCENT 10
 #define BAND_P_GAIN 6.0
 #define BAND_I_GAIN 3.0
 #define BAND_D_GAIN 0.0
@@ -140,6 +141,8 @@ boolean error_tip;
 boolean no_tip;
 byte error_counter;
 
+byte pid_flag;
+
 //variables for cycle count
 int cycle;
 int last_cycle;
@@ -189,15 +192,15 @@ byte p4[8] = {
   0b11110
 };
 
-byte p5[8] = {
-  0b11111,
-  0b11111,
-  0b11111,
-  0b11111,
-  0b11111,
-  0b11111,
-  0b11111,
-  0b11111
+byte box_char[8] = {
+  0b00000,
+  0b00000,
+  0b01110,
+  0b01110,
+  0b01110,
+  0b01110,
+  0b00000,
+  0b00000
 };
 byte temperatur_char[8] = {
   0b10010,
@@ -283,7 +286,7 @@ void draw_bar(int value, byte numCols, int maxValue) {
   if (prevValue != normalizedValue) {
 
     for (byte i = 0; i < fullChars; i++) {
-      lcd.write(4);
+      lcd.write((char)0b11111111);
     }
     if (mod > 0) {
       switch (mod) {
@@ -486,7 +489,7 @@ void setup()
   lcd.createChar(1, p2);
   lcd.createChar(2, p3);
   lcd.createChar(3, p4);
-  lcd.createChar(4, p5);
+  lcd.createChar(4, box_char);
   lcd.createChar(5, temperatur_char);
   lcd.createChar(6, gradcelsius_char);
   lcd.createChar(7, arrow_char);
@@ -579,11 +582,13 @@ void loop()
       pwm_value = calculate_pid(STDBY_TEMP_DEG, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
     }
     else {
-      if (abs(temp_setpoint - (int)(temperature_tip_absolute / 1000)) < BAND_TARGET_TEMP_GRAD && pwm_value < PWM_MAX_VALUE / 10) {
+      if (abs(temp_setpoint - (int)(temperature_tip_absolute / 1000)) < BAND_TARGET_TEMP_GRAD && pwm_value < BAND_MAX_PWM_PERCENT * PWM_MAX_VALUE / 100) {
         pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), BAND_P_GAIN, BAND_I_GAIN, BAND_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+        pid_flag = 0;
       }
       else {
         pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+        pid_flag = 1;
       }
     }
 
@@ -686,17 +691,27 @@ void loop()
       lcd.print("ERR ");
     }
 
+
     //second line
+    //pid_flag
+    lcd.setCursor(0, 1);
+    if (pid_flag) {
+      lcd.write((char)4); //heating or not in band around the setpoint
+    }
+    else {
+      lcd.print((char)0b11011011); //in band around the setpoint
+    }
+
     //pwm in percent (0,1,2), % (3), blank (4), bargraph (5-15)
     pwm_percent = map(pwm_value_mean, 0, PWM_MAX_VALUE, 0, 100);
-    lcd.setCursor(0, 1); //Start at character 0 on line 1
+    lcd.setCursor(1, 1); //Start at character 0 on line 1
     if (pwm_percent < 10)  lcd.print(" ");
     if (pwm_percent < 100) lcd.print(" ");
     lcd.print(pwm_percent);
     lcd.print("%");
 
-    lcd.setCursor(5, 1); //Start at character 5 on line 1
-    draw_bar(pwm_percent, 11, 100);
+    lcd.setCursor(6, 1); //Start at character 5 on line 1
+    draw_bar(pwm_percent, 10, 100);
   }
 
 
