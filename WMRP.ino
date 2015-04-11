@@ -33,7 +33,7 @@
 #define DELAY_BEFORE_MEASURE_MS 5
 #define TIME_SW_POLL_MS         10
 #define TIME_TUI_MEAS_MS        100
-#define TIME_SERIAL_MS          500
+#define TIME_SERIAL_MS          100
 #define TIME_LCD_MS             500
 #define TIME_CYCLECOUNT_MS      1000
 #define TIME_EEPROM_WRITE_MS    30000
@@ -46,14 +46,14 @@
 #define ERROR_COUNTER_THRESHOLD 10
 
 //PID CONTROL - SOLDERING
-#define CNTRL_P_GAIN 50.0
+#define CNTRL_P_GAIN 40.0
 #define CNTRL_I_GAIN 8.0
 #define CNTRL_D_GAIN 0.0
 
 //PID CONTROL - TARGET TEMP, PWM < 10%
 #define BAND_TARGET_TEMP_GRAD 7
 #define BAND_MAX_PWM_PERCENT 10
-#define BAND_P_GAIN 6.0
+#define BAND_P_GAIN 5.0
 #define BAND_I_GAIN 3.0
 #define BAND_D_GAIN 0.0
 
@@ -117,6 +117,7 @@ int adc_voltage_input;
 long    voltage_input;
 int adc_current_heater;
 long    current_heater;
+
 
 int adc_current_heater_offset;
 int pwm_value;
@@ -506,7 +507,7 @@ void loop()
 {
   digitalWrite(DEBUG_LED, !digitalRead(DEBUG_LED));
 
-
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_cyclecount.over(TIME_CYCLECOUNT_MS)) {
     //here comes the cycles per second count
     last_cycle = cycle;
@@ -516,7 +517,7 @@ void loop()
     cycle++;
   }
 
-
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_eeprom.over(TIME_EEPROM_WRITE_MS)) {
     //here comes the eeprom write
     if (temp_setpoint != temp_setpoint_old) {
@@ -525,36 +526,31 @@ void loop()
     }
   }
 
-
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_meas.over(TIME_TUI_MEAS_MS)) {
     //here comes the start of the measurement
     adc_current_heater = analogRead(PIN_ADC_I_HEATER);
-    adc_voltage_input            = analogRead(PIN_ADC_U_IN);
+    adc_voltage_input  = analogRead(PIN_ADC_U_IN);
 
     Timer1.setPwmDuty(PIN_HEATER, 0);         //stop heating
     meas_flag = true;                         //set meas_flag
     timer_delay_before_measure.set_timer();   //set delay timer to actual time
     //if (DEBUG) {Serial.print("S: "); Serial.println(millis()); }
-  }
+    //  }
 
-
-  if (timer_delay_before_measure.over(DELAY_BEFORE_MEASURE_MS) && meas_flag) {
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //  if (timer_delay_before_measure.over(DELAY_BEFORE_MEASURE_MS) && meas_flag) {
     meas_flag = false;
-    //delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap
+    delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap
     adc_temperature_grip         = analogRead(PIN_ADC_T_GRIP);
-    adc_temperature_tip_relative = (analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP) +
-                                    analogRead(PIN_ADC_T_TIP)) / 10;
+    adc_temperature_tip_relative = (analogRead(PIN_ADC_T_TIP)
+                                    + analogRead(PIN_ADC_T_TIP)
+                                    + analogRead(PIN_ADC_T_TIP)
+                                    + analogRead(PIN_ADC_T_TIP)
+                                    + analogRead(PIN_ADC_T_TIP)) / 5;
 
     //code for stand recognition....
-    if (timer_stand.over(TIME_STAND_MS)) {
+    if (timer_stand.over(TIME_STAND_MS) && 0) {
       digitalWrite(PIN_STAND, 1);
       delay(DELAY_BEFORE_STAND_MS);
       if (analogRead(PIN_ADC_STAND) < THRESHOLD_STAND) {
@@ -579,8 +575,9 @@ void loop()
 
     //temp_setpoint = constrain(temp_setpoint, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
     if (status_stand_reed == 1 || status_stand_manu == 1) {
-      pwm_value = calculate_pid(STDBY_TEMP_DEG, (int)(temperature_tip_absolute / 1000), CNTRL_P_GAIN, CNTRL_I_GAIN, CNTRL_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
-    }
+      pwm_value = calculate_pid(STDBY_TEMP_DEG, (int)(temperature_tip_absolute / 1000), BAND_P_GAIN, BAND_I_GAIN, BAND_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
+      pid_flag = 0;
+  }
     else {
       if (abs(temp_setpoint - (int)(temperature_tip_absolute / 1000)) < BAND_TARGET_TEMP_GRAD && pwm_value < BAND_MAX_PWM_PERCENT * PWM_MAX_VALUE / 100) {
         pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), BAND_P_GAIN, BAND_I_GAIN, BAND_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
@@ -591,7 +588,7 @@ void loop()
         pid_flag = 1;
       }
     }
-
+    //pwm_value = 60;
     //no heating when error event occoured
     if (error_tip || no_tip) {
       pwm_value = 0;
@@ -611,44 +608,57 @@ void loop()
   }
 
 
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_serial.over(TIME_SERIAL_MS)) {
     //here comes the serial output
-    Serial.print("Input Voltage:       ");
-    Serial.println((float)voltage_input / 1000000, 3);
-    Serial.print("Heater Current:      ");
-    Serial.println((float)current_heater / 1000000, 3);
-    Serial.print("Temp Grip:           ");
-    Serial.println((float)temperature_grip / 1000, 3);
-    Serial.print("Temp Tip (relative): ");
-    Serial.println((float)temperature_tip_relative / 1000, 3);
-    Serial.print("Temp Tip (absolute): ");
-    Serial.println((float)temperature_tip_absolute / 1000, 3);
-    Serial.print("Setpoint Temp:       ");
-    Serial.println(temp_setpoint);
-    Serial.print("PWM:                 ");
-    Serial.println(pwm_value);
-    Serial.print("PWM (mean):          ");
-    Serial.println(pwm_value_mean);
-    Serial.print("Status Stand (Reed): ");
-    Serial.println(status_stand_reed);
-    Serial.print("Status Stand (Manu): ");
-    Serial.println(status_stand_manu);
-    Serial.print("Cycles per sec:      ");
-    Serial.println(last_cycle);
-    Serial.print("Error Tip:           ");
-    Serial.println(error_tip);
-    Serial.print("No Tip:              ");
-    Serial.println(no_tip);
-    Serial.print("Temp flag:           ");
-    Serial.println(temp_flag);
-    Serial.print("Error counter:       ");
-    Serial.println(error_counter);
+    if (1) {
+      Serial.print((float)temperature_tip_absolute / 1000, 3);
+      Serial.print(";");
+      Serial.print(temp_setpoint);
+      Serial.print(";");
+      Serial.print(pwm_value);
+      Serial.print(";");
+      Serial.println((float)current_heater / 1000000, 3);
+      //Serial.print(";");
+      //erial.println(analogRead(PIN_ADC_STAND));
+    }
+    if (0) {
+      Serial.print("Input Voltage:       ");
+      Serial.println((float)voltage_input / 1000000, 3);
+      Serial.print("Heater Current:      ");
+      Serial.println((float)current_heater / 1000000, 3);
+      Serial.print("Temp Grip:           ");
+      Serial.println((float)temperature_grip / 1000, 3);
+      Serial.print("Temp Tip (relative): ");
+      Serial.println((float)temperature_tip_relative / 1000, 3);
+      Serial.print("Temp Tip (absolute): ");
+      Serial.println((float)temperature_tip_absolute / 1000, 3);
+      Serial.print("Setpoint Temp:       ");
+      Serial.println(temp_setpoint);
+      Serial.print("PWM:                 ");
+      Serial.println(pwm_value);
+      Serial.print("PWM (mean):          ");
+      Serial.println(pwm_value_mean);
+      Serial.print("Status Stand (Reed): ");
+      Serial.println(status_stand_reed);
+      Serial.print("Status Stand (Manu): ");
+      Serial.println(status_stand_manu);
+      Serial.print("Cycles per sec:      ");
+      Serial.println(last_cycle);
+      Serial.print("Error Tip:           ");
+      Serial.println(error_tip);
+      Serial.print("No Tip:              ");
+      Serial.println(no_tip);
+      Serial.print("Temp flag:           ");
+      Serial.println(temp_flag);
+      Serial.print("Error counter:       ");
+      Serial.println(error_counter);
 
-
-    serial_draw_line();
+      serial_draw_line();
+    }
   }
 
-
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_lcd.over(TIME_LCD_MS)) {
     //here comes the lcd output
     //first line
@@ -703,7 +713,7 @@ void loop()
     }
 
     //pwm in percent (0,1,2), % (3), blank (4), bargraph (5-15)
-    pwm_percent = map(pwm_value_mean, 0, PWM_MAX_VALUE, 0, 100);
+    pwm_percent = map(pwm_value, 0, PWM_MAX_VALUE, 0, 100);
     lcd.setCursor(1, 1); //Start at character 0 on line 1
     if (pwm_percent < 10)  lcd.print(" ");
     if (pwm_percent < 100) lcd.print(" ");
@@ -715,6 +725,7 @@ void loop()
   }
 
 
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_switch.over(TIME_SW_POLL_MS)) {
     //here comes the switch reading
     state_switch[0] = !digitalRead(PIN_SW_1);
@@ -776,7 +787,7 @@ void loop()
   }
 
 
-
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_error_chk.over(TIME_ERROR_MS)) {
 
     if (adc_temperature_tip_relative > 100 && temp_flag == false) { 	//set temp_flag = true after adc_temperature_tip_relative > 100
@@ -808,7 +819,7 @@ void loop()
   }
 
 
-
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (1) {
     //here comes the rotary encoder reading (every loop)
     encoder_value = enc.read();
