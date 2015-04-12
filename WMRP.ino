@@ -53,8 +53,8 @@
 //PID CONTROL - TARGET TEMP && PWM < 10%
 #define BAND_TARGET_TEMP_GRAD   4
 #define BAND_MAX_PWM_PERCENT    10.0
-#define BAND_P_GAIN             20.0
-#define BAND_I_GAIN             4.0
+#define BAND_P_GAIN             10.0
+#define BAND_I_GAIN             2.0
 #define BAND_D_GAIN             0.0
 
 //TEMPERATURES
