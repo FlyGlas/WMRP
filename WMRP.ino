@@ -33,7 +33,7 @@
 #define DELAY_BEFORE_MEASURE_MS 5
 #define TIME_SW_POLL_MS         10
 #define TIME_TUI_MEAS_MS        100
-#define TIME_SERIAL_MS          100
+#define TIME_SERIAL_MS          500
 #define TIME_LCD_MS             500
 #define TIME_CYCLECOUNT_MS      1000
 #define TIME_EEPROM_WRITE_MS    30000
@@ -51,10 +51,10 @@
 #define CNTRL_D_GAIN            0.0
 
 //PID CONTROL - TARGET TEMP && PWM < 10%
-#define BAND_TARGET_TEMP_GRAD   7
-#define BAND_MAX_PWM_PERCENT    10
-#define BAND_P_GAIN             5.0
-#define BAND_I_GAIN             3.0
+#define BAND_TARGET_TEMP_GRAD   4
+#define BAND_MAX_PWM_PERCENT    10.0
+#define BAND_P_GAIN             20.0
+#define BAND_I_GAIN             4.0
 #define BAND_D_GAIN             0.0
 
 //TEMPERATURES
@@ -549,14 +549,15 @@ void loop()
                                     + analogRead(PIN_ADC_T_TIP)) / 5;
 
     //code for stand recognition....
-    if (timer_stand.over(TIME_STAND_MS) && 0) {
+    if (timer_stand.over(TIME_STAND_MS)) {
       digitalWrite(PIN_STAND, 1);
       delay(DELAY_BEFORE_STAND_MS);
       if (analogRead(PIN_ADC_STAND) < THRESHOLD_STAND) {
-        status_stand_reed = 1;
+        status_stand_reed = true;
+        status_stand_manu = false; 
       }
       else {
-        status_stand_reed = 0;
+        status_stand_reed = false;
       }
       digitalWrite(PIN_STAND, 0);
     }
@@ -787,6 +788,7 @@ void loop()
       else {
          error_tip = false;
          no_tip = false;
+         temp_flag = false;
       }
     }
 
