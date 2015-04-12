@@ -46,24 +46,24 @@
 #define ERROR_COUNTER_THRESHOLD 10
 
 //PID CONTROL - SOLDERING
-#define CNTRL_P_GAIN 40.0
-#define CNTRL_I_GAIN 8.0
-#define CNTRL_D_GAIN 0.0
+#define CNTRL_P_GAIN            40.0
+#define CNTRL_I_GAIN            8.0
+#define CNTRL_D_GAIN            0.0
 
-//PID CONTROL - TARGET TEMP, PWM < 10%
-#define BAND_TARGET_TEMP_GRAD 7
-#define BAND_MAX_PWM_PERCENT 10
-#define BAND_P_GAIN 5.0
-#define BAND_I_GAIN 3.0
-#define BAND_D_GAIN 0.0
+//PID CONTROL - TARGET TEMP && PWM < 10%
+#define BAND_TARGET_TEMP_GRAD   7
+#define BAND_MAX_PWM_PERCENT    10
+#define BAND_P_GAIN             5.0
+#define BAND_I_GAIN             3.0
+#define BAND_D_GAIN             0.0
 
 //TEMPERATURES
-#define STDBY_TEMP_DEG      150
-#define MIN_TARGET_TEMP_DEG 150
-#define MAX_TARGET_TEMP_DEG 450
+#define STDBY_TEMP_DEG         150
+#define MIN_TARGET_TEMP_DEG    150
+#define MAX_TARGET_TEMP_DEG    450
 
 //PWM MAX
-#define PWM_MAX_VALUE       1023
+#define PWM_MAX_VALUE          1023
 
 //ADC TO TEMP CONVVERSION
 #define ADC_TO_T_TIP_A0  -1176200 //inverse function: t[*C] = - 1176.2 + 3.34 * SQRT(14978 * U[mV] + 130981)
@@ -118,7 +118,6 @@ long    voltage_input;
 int adc_current_heater;
 long    current_heater;
 
-
 int adc_current_heater_offset;
 int pwm_value;
 int pwm_value_mean;
@@ -135,7 +134,7 @@ boolean meas_flag;
 
 boolean stand_flag;
 boolean status_stand_reed;
-boolean status_stand_manu;
+boolean status_stand_manu = true;  //start with standby
 
 boolean temp_flag;
 boolean error_tip;
@@ -577,7 +576,7 @@ void loop()
     if (status_stand_reed == 1 || status_stand_manu == 1) {
       pwm_value = calculate_pid(STDBY_TEMP_DEG, (int)(temperature_tip_absolute / 1000), BAND_P_GAIN, BAND_I_GAIN, BAND_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
       pid_flag = 0;
-  }
+    }
     else {
       if (abs(temp_setpoint - (int)(temperature_tip_absolute / 1000)) < BAND_TARGET_TEMP_GRAD && pwm_value < BAND_MAX_PWM_PERCENT * PWM_MAX_VALUE / 100) {
         pwm_value = calculate_pid(temp_setpoint, (int)(temperature_tip_absolute / 1000), BAND_P_GAIN, BAND_I_GAIN, BAND_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
@@ -611,7 +610,8 @@ void loop()
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_serial.over(TIME_SERIAL_MS)) {
     //here comes the serial output
-    if (1) {
+    if (0) {
+      //Serial data for csv export
       Serial.print((float)temperature_tip_absolute / 1000, 3);
       Serial.print(";");
       Serial.print(temp_setpoint);
@@ -622,7 +622,8 @@ void loop()
       //Serial.print(";");
       //erial.println(analogRead(PIN_ADC_STAND));
     }
-    if (0) {
+    if (1) {
+      //serial data for visualization in serial monitor
       Serial.print("Input Voltage:       ");
       Serial.println((float)voltage_input / 1000000, 3);
       Serial.print("Heater Current:      ");
@@ -665,9 +666,14 @@ void loop()
     //"temperature symbol (0), temp_tip_abs (1,2,3), grad celsius symbol (4), blank (5), setpoint symbol (6), temp_set (7,8,9), grad celsius symbol (10)"
     lcd.setCursor(0, 0); //Start at character 0 on line 0
     lcd.write(byte(5));
-    if (int(temperature_tip_absolute / 1000) < 10)   lcd.print(" ");
-    if (int(temperature_tip_absolute / 1000) < 100)  lcd.print(" ");
-    lcd.print(int(temperature_tip_absolute / 1000));
+    if ((int)(temperature_tip_absolute / 1000) < (MIN_TARGET_TEMP_DEG - 50) || (int)(temperature_tip_absolute / 1000) > (MAX_TARGET_TEMP_DEG + 50) || error_tip || no_tip) {
+      lcd.print(" - ");
+    }
+    else {
+      if (int(temperature_tip_absolute / 1000) < 10)   lcd.print(" ");
+      if (int(temperature_tip_absolute / 1000) < 100)  lcd.print(" ");
+      lcd.print(int(temperature_tip_absolute / 1000));
+    }
     lcd.write(byte(6));
 
     lcd.setCursor(5, 0); //Start at character 6 on line 0
@@ -684,17 +690,12 @@ void loop()
     lcd.write(byte(6));
 
     lcd.setCursor(12, 0); //Start at character 6 on line 0
-    if (error_tip == false) {
-      if (status_stand_reed == 1 || status_stand_manu == 1) {
+    if (!error_tip && !no_tip) {
+      if (status_stand_reed || status_stand_manu) {
         lcd.print("STBY");
       }
       else {
-        //   if (pwm_value == 0) {
-        //     lcd.print("COOL");
-        //   }
-        //   else {
         lcd.print("HEAT");
-        //   }
       }
     }
     else {
@@ -780,7 +781,13 @@ void loop()
 
 
     if (!state_switch[3] && state_switch_old[3]) {
-      status_stand_manu = !status_stand_manu;
+      if (!error_tip && !no_tip) {
+        status_stand_manu = !status_stand_manu;
+      }
+      else {
+         error_tip = false;
+         no_tip = false;
+      }
     }
 
     memcpy(&state_switch_old, &state_switch, sizeof(state_switch)); // save values
