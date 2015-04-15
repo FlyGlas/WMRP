@@ -1,4 +1,6 @@
 // some preprocessor defines
+#define SW_VERSION      "Version 1.1a"
+#define DEBUG           true
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
 #define PIN_SW_1         12
@@ -40,10 +42,11 @@
 #define TIME_STAND_MS           1000
 #define DELAY_BEFORE_STAND_MS   5
 #define TIME_ERROR_MS           50
+#define TIME_BLINK_LCD          150
 
 //THRESHOLDS
-#define THRESHOLD_STAND         300
-#define ERROR_COUNTER_THRESHOLD 10
+#define THRESHOLD_STAND         300 // adc value
+#define ERROR_COUNTER_THRESHOLD 20  // * TIME_ERROR_MS (50) = 1000ms
 
 //PID CONTROL - SOLDERING
 #define CNTRL_P_GAIN            40.0
@@ -65,7 +68,7 @@
 //PWM MAX
 #define PWM_MAX_VALUE          1023
 
-//ADC TO TEMP CONVVERSION
+//ADC TO TEMP CONVERSION
 #define ADC_TO_T_TIP_A0  -1176200 //inverse function: t[*C] = - 1176.2 + 3.34 * SQRT(14978 * U[mV] + 130981)
 #define ADC_TO_T_TIP_A1  3340     //                  u[mV] = adc_value * 4mV * 1/OPAMP_T_TIP_GAIN
 #define ADC_TO_T_TIP_A2  139      //           1000 * t[*C] = -1176200 + 3340 * SQRT(139 * adc_value + 130981)
@@ -84,14 +87,14 @@
 //#define OPAMP_I_HEATER_GAIN 2.2
 
 //EEPROM ADDRESS
-#define EEPROM_ADDRESS_TEMP_START 0
-#define EEPROM_ADDRESS_TEMP_END   1
-#define EEPROM_ADDRESS_VAL1_START 2
-#define EEPROM_ADDRESS_VAL1_END   3
-#define EEPROM_ADDRESS_VAL2_START 4
-#define EEPROM_ADDRESS_VAL2_END   5
-#define EEPROM_ADDRESS_VAL3_START 6
-#define EEPROM_ADDRESS_VAL3_END   7
+#define EEPROM_ADDRESS_TEMP_START   0
+//#define EEPROM_ADDRESS_TEMP_END   1
+#define EEPROM_ADDRESS_VAL1_START   2
+//#define EEPROM_ADDRESS_VAL1_END   3
+#define EEPROM_ADDRESS_VAL2_START   4
+//#define EEPROM_ADDRESS_VAL2_END   5
+#define EEPROM_ADDRESS_VAL3_START   6
+//#define EEPROM_ADDRESS_VAL3_END   7
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,9 +106,6 @@
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
 #include <Encoder.h>
 Encoder enc(PIN_ROT_A, PIN_ROT_B);
-
-#define SW_VERSION      "Version 1.0"
-#define DEBUG true
 
 //GLOBAL VARIABLES
 long    temperature_tip_absolute;
@@ -233,6 +233,11 @@ byte arrow_char[8] = {
   0b00100
 };
 
+const byte eeprom_address[3] = { EEPROM_ADDRESS_VAL1_START,
+                                 EEPROM_ADDRESS_VAL2_START,
+                                 EEPROM_ADDRESS_VAL3_START
+                               };
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //CLASSES
 
@@ -270,6 +275,7 @@ timer_over timer_eeprom;
 timer_over timer_delay_before_measure;
 timer_over timer_stand;
 timer_over timer_error_chk;
+timer_over timer_blink_lcd;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //FUNCTIONS
@@ -483,7 +489,7 @@ void setup()
   Serial.begin(115200);       //start serial communication
   Serial.println(SW_VERSION); //print software version
 
-  delay(100);
+  delay(10);
   lcd.begin(16, 2);      //initialize the lcd for 16 chars 2 lines
   lcd.createChar(0, p1); //create chars for bargraph
   lcd.createChar(1, p2);
@@ -494,7 +500,15 @@ void setup()
   lcd.createChar(6, gradcelsius_char);
   lcd.createChar(7, arrow_char);
   lcd.clear();
-  delay(100);
+  delay(10);
+
+  //start screen on lcd
+  lcd.setCursor(2, 0); //Start at character 0 on line 0
+  lcd.write("WMRP STATION");
+  lcd.setCursor(2, 1); //Start at character 0 on line 0
+  lcd.write(SW_VERSION);
+  delay(1000);
+  lcd.clear();
 }
 
 void isr_routine()
@@ -508,7 +522,7 @@ void loop()
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_cyclecount.over(TIME_CYCLECOUNT_MS)) {
-    //here comes the cycles per second count
+    //here comes the cycles per second counter
     last_cycle = cycle;
     cycle = 0;
   }
@@ -534,13 +548,12 @@ void loop()
     Timer1.setPwmDuty(PIN_HEATER, 0);         //stop heating
     meas_flag = true;                         //set meas_flag
     timer_delay_before_measure.set_timer();   //set delay timer to actual time
-    //if (DEBUG) {Serial.print("S: "); Serial.println(millis()); }
-    //  }
+  }
 
-    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //  if (timer_delay_before_measure.over(DELAY_BEFORE_MEASURE_MS) && meas_flag) {
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  if (timer_delay_before_measure.over(DELAY_BEFORE_MEASURE_MS) && meas_flag) {
     meas_flag = false;
-    delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap
+    //delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap (the hard way with delays)
     adc_temperature_grip         = analogRead(PIN_ADC_T_GRIP);
     adc_temperature_tip_relative = (analogRead(PIN_ADC_T_TIP)
                                     + analogRead(PIN_ADC_T_TIP)
@@ -554,7 +567,7 @@ void loop()
       delay(DELAY_BEFORE_STAND_MS);
       if (analogRead(PIN_ADC_STAND) < THRESHOLD_STAND) {
         status_stand_reed = true;
-        status_stand_manu = false; 
+        status_stand_manu = false;
       }
       else {
         status_stand_reed = false;
@@ -574,7 +587,7 @@ void loop()
     temperature_tip_absolute = temperature_tip_relative + temperature_grip;
 
     //temp_setpoint = constrain(temp_setpoint, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
-    if (status_stand_reed == 1 || status_stand_manu == 1) {
+    if (status_stand_reed || status_stand_manu) {
       pwm_value = calculate_pid(STDBY_TEMP_DEG, (int)(temperature_tip_absolute / 1000), BAND_P_GAIN, BAND_I_GAIN, BAND_D_GAIN, TIME_TUI_MEAS_MS, PWM_MAX_VALUE);
       pid_flag = 0;
     }
@@ -711,7 +724,7 @@ void loop()
       lcd.write((char)4); //heating or not in band around the setpoint
     }
     else {
-      lcd.print((char)0b11011011); //in band around the setpoint
+      lcd.print((char)0b11011011); //in band around the setpoint (Chars: http://de.wikipedia.org/wiki/HD44780#/media/File:Charset.gif)
     }
 
     //pwm in percent (0,1,2), % (3), blank (4), bargraph (5-15)
@@ -735,64 +748,45 @@ void loop()
     state_switch[2] = !digitalRead(PIN_SW_3);
     state_switch[3] = !digitalRead(PIN_ROT_SW);
 
-    if (state_switch[0] && state_switch_old[0]) {
-      if (button_count[0] == 100) {
-        eeprom_write_int(EEPROM_ADDRESS_VAL1_START, temp_setpoint);  //safe temperature value to eeprom if buttonCount is equal 100
+    //the three buttons under the lcd
+    for (int i = 0; i < 3; i++) {
+      if (state_switch[i] && state_switch_old[i]) {
+        if (button_count[i] == 100) {
+          eeprom_write_int(eeprom_address[i], temp_setpoint);  //safe temperature value to eeprom if buttonCount is equal 100
+          timer_blink_lcd.set_timer();
+          lcd.noBacklight();
+        }
+        button_count[i]++;                                     //count up if button is and was pushed
       }
-      button_count[0]++;          //count up if button is and was pushed
-    }
-    else {
-      if (!state_switch[0] && state_switch_old[0]) {                 //detect falling edge, releasing the button
-        temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL1_START);  //read temp from eeeprom
-        enc.write(temp_setpoint);
+      else {
+        if (!state_switch[i] && state_switch_old[i]) {         //detect falling edge, releasing the button
+          temp_setpoint = eeprom_read_int(eeprom_address[i]);  //read temp from eeeprom
+          enc.write(temp_setpoint);
+        }
+        button_count[i] = 0;                                   //resett counter
       }
-      button_count[0] = 0;                                              //resett counter
-    }
-
-
-    if (state_switch[1] && state_switch_old[1]) {
-      if (button_count[1] == 100) {
-        eeprom_write_int(EEPROM_ADDRESS_VAL2_START, temp_setpoint);  //safe temperature value to eeprom if buttonCount is equal 100
-        enc.write(temp_setpoint);
-      }
-      button_count[1]++;          //count up if button is and was pushed
-    }
-    else {
-      if (!state_switch[1] && state_switch_old[1]) {                 //detect falling edge, releasing the button
-        temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL2_START);  //read temp from eeeprom
-        enc.write(temp_setpoint);
-      }
-      button_count[1] = 0;                                              //resett counter
     }
 
-
-    if (state_switch[2] && state_switch_old[2]) {
-      if (button_count[2] == 100) {
-        eeprom_write_int(EEPROM_ADDRESS_VAL3_START, temp_setpoint);  //safe temperature value to eeprom if buttonCount is equal 100
-      }
-      button_count[2]++;          //count up if button is and was pushed
-    }
-    else {
-      if (!state_switch[2] && state_switch_old[2]) {                 //detect falling edge, releasing the button
-        temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_VAL3_START);  //read temp from eeeprom
-        enc.write(temp_setpoint);
-      }
-      button_count[2] = 0;                                              //resett counter
-    }
-
-
+    //the button included in the rotary encoder
     if (!state_switch[3] && state_switch_old[3]) {
       if (!error_tip && !no_tip) {
         status_stand_manu = !status_stand_manu;
       }
       else {
-         error_tip = false;
-         no_tip = false;
-         temp_flag = false;
+        error_tip = false;
+        no_tip = false;
+        temp_flag = false;
+        error_counter = 0;
       }
     }
 
     memcpy(&state_switch_old, &state_switch, sizeof(state_switch)); // save values
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  if (timer_blink_lcd.over(TIME_BLINK_LCD)) {
+    lcd.backlight();
   }
 
 
@@ -829,8 +823,8 @@ void loop()
 
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  if (1) {
-    //here comes the rotary encoder reading (every loop)
+  if (!error_tip && !no_tip && !status_stand_manu && !status_stand_reed) {
+    //here comes the rotary encoder reading (every loop, when no error or in stand)
     encoder_value = enc.read();
     if (abs(temp_setpoint - encoder_value) >= 4) {
       temp_setpoint = temp_setpoint + (encoder_value - temp_setpoint) / 4; //read rotary encoder
