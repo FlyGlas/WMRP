@@ -45,8 +45,9 @@
 #define TIME_BLINK_LCD          150
 
 //THRESHOLDS
-#define THRESHOLD_STAND         300 // adc value
-#define ERROR_COUNTER_THRESHOLD 20  // * TIME_ERROR_MS (50) = 1000ms
+#define THRESHOLD_STAND         300      //adc value
+#define ERROR_COUNTER_THRESHOLD 20       //* TIME_ERROR_MS (50) = 1000ms
+#define VOLTAGE_TRESHOLD        10500000 //10.5V
 
 //PID CONTROL - SOLDERING
 #define CNTRL_P_GAIN            40.0
@@ -136,6 +137,7 @@ boolean stand_flag;
 boolean status_stand_reed;
 boolean status_stand_manu = true;  //start with standby
 
+boolean error_voltage;
 boolean temp_flag;
 boolean error_tip;
 boolean no_tip;
@@ -603,7 +605,7 @@ void loop()
     }
     //pwm_value = 60;
     //no heating when error event occoured
-    if (error_tip || no_tip) {
+    if (error_tip || no_tip || error_voltage) {
       pwm_value = 0;
     }
 
@@ -668,6 +670,8 @@ void loop()
       Serial.println(temp_flag);
       Serial.print("Error counter:       ");
       Serial.println(error_counter);
+      Serial.print("Error voltage:       ");
+      Serial.println(error_voltage);
 
       serial_draw_line();
     }
@@ -695,7 +699,7 @@ void loop()
 
     lcd.setCursor(6, 0); //Start at character 6 on line 0
     lcd.write(byte(7));
-    if (status_stand_reed == 1 || status_stand_manu == 1) {
+    if (status_stand_reed || status_stand_manu) {
       lcd.print(STDBY_TEMP_DEG);
     }
     else {
@@ -704,7 +708,7 @@ void loop()
     lcd.write(byte(6));
 
     lcd.setCursor(12, 0); //Start at character 6 on line 0
-    if (!error_tip && !no_tip) {
+    if (!error_tip && !no_tip && !error_voltage) {
       if (status_stand_reed || status_stand_manu) {
         lcd.print("STBY");
       }
@@ -713,7 +717,12 @@ void loop()
       }
     }
     else {
-      lcd.print("ERR ");
+      if (error_voltage) {
+        lcd.print("BATT");
+      }
+      else {
+        lcd.print("ERR ");
+      }
     }
 
 
@@ -819,11 +828,15 @@ void loop()
     else {
       no_tip = false;
     }
+
+    if (voltage_input < VOLTAGE_TRESHOLD && pwm_value > 0) {
+      error_voltage = true;
+    }
   }
 
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  if (!error_tip && !no_tip && !status_stand_manu && !status_stand_reed) {
+  if (!error_tip && !no_tip && !status_stand_manu && !status_stand_reed && !error_voltage) {
     //here comes the rotary encoder reading (every loop, when no error or in stand)
     encoder_value = enc.read();
     if (abs(temp_setpoint - encoder_value) >= 4) {
