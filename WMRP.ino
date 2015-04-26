@@ -1,5 +1,5 @@
 // some preprocessor defines
-#define SW_VERSION      "Version 1.1a"
+#define SW_VERSION      "Version 1.2a"
 #define DEBUG           true
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
@@ -43,6 +43,7 @@
 #define DELAY_BEFORE_STAND_MS   5
 #define TIME_ERROR_MS           50
 #define TIME_BLINK_LCD          150
+#define TIME_SLEEP_S            300 //60*5
 
 //THRESHOLDS
 #define THRESHOLD_STAND         300      //adc value
@@ -133,7 +134,8 @@ byte button_count[5];
 
 boolean meas_flag;
 
-boolean stand_flag;
+boolean sleep_flag;
+long    sleep_counter;
 boolean status_stand_reed;
 boolean status_stand_manu = true;  //start with standby
 
@@ -251,7 +253,7 @@ class timer_over {
     timer_over() {
       _last_time = 0;
     }
-    boolean over(int sample_time) {
+    boolean over(long sample_time) {
       unsigned long now = millis();
       unsigned long time_change = (now - this->_last_time);
 
@@ -527,6 +529,20 @@ void loop()
     //here comes the cycles per second counter
     last_cycle = cycle;
     cycle = 0;
+
+    if (status_stand_reed || status_stand_manu) {
+      sleep_counter++;
+    }
+    else {
+      sleep_counter = 0;
+    }
+    if (sleep_counter > TIME_SLEEP_S) {
+      sleep_flag = true;
+    }
+    else {
+      sleep_flag = false;
+    }
+
   }
   else {
     cycle++;
@@ -605,7 +621,7 @@ void loop()
     }
     //pwm_value = 60;
     //no heating when error event occoured
-    if (error_tip || no_tip || error_voltage) {
+    if (error_tip || no_tip || error_voltage || sleep_flag) {
       pwm_value = 0;
     }
 
@@ -672,6 +688,10 @@ void loop()
       Serial.println(error_counter);
       Serial.print("Error voltage:       ");
       Serial.println(error_voltage);
+      Serial.print("Sleep counter:       ");
+      Serial.println(sleep_counter);
+      Serial.print("Sleep flag:          ");
+      Serial.println(sleep_flag);
 
       serial_draw_line();
     }
@@ -710,7 +730,12 @@ void loop()
     lcd.setCursor(12, 0); //Start at character 6 on line 0
     if (!error_tip && !no_tip && !error_voltage) {
       if (status_stand_reed || status_stand_manu) {
-        lcd.print("STBY");
+        if (sleep_flag) {
+          lcd.print("OFF ");
+        }
+        else {
+          lcd.print("STBY");
+        }
       }
       else {
         lcd.print("HEAT");
@@ -802,25 +827,31 @@ void loop()
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_error_chk.over(TIME_ERROR_MS)) {
 
-    if (adc_temperature_tip_relative > 100 && temp_flag == false) { 	//set temp_flag = true after adc_temperature_tip_relative > 100
+    if (adc_temperature_tip_relative > 100 && !temp_flag) { 	//set temp_flag = true after adc_temperature_tip_relative > 100
       temp_flag = true;
     }
 
-    if (adc_temperature_tip_relative < 30) {
-      if (temp_flag == true) { 			                  //adc_temperature_tip_relative < 30 but was > 100 before
-        error_tip = true;
-      }
-      else {						         //adc_temperature_tip_relative < 30 and never before > 100
-        error_counter++;
-        if (error_counter > ERROR_COUNTER_THRESHOLD) { 		//error after x cycles without adc_temperature_tip_relative > 100
+    if (!sleep_flag) {
+      if (adc_temperature_tip_relative < 30) {
+        if (temp_flag == true) { 			                  //adc_temperature_tip_relative < 30 but was > 100 before
           error_tip = true;
-          error_counter = 0;
         }
+        else {						         //adc_temperature_tip_relative < 30 and never before > 100
+          error_counter++;
+          if (error_counter > ERROR_COUNTER_THRESHOLD) { 		//error after x cycles without adc_temperature_tip_relative > 100
+            error_tip = true;
+            error_counter = 0;
+          }
+        }
+      }
+      else {
+        //error_tip = false;
       }
     }
     else {
-      //error_tip = false;
+      temp_flag = false;
     }
+
     if (adc_temperature_tip_relative > 900) {
       no_tip = true;
       //error_tip = false;
