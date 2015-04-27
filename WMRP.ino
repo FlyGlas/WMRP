@@ -1,5 +1,5 @@
 // some preprocessor defines
-#define SW_VERSION      "Version 1.2a"
+#define SW_VERSION      "Version 1.2b"
 #define DEBUG           true
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
@@ -39,11 +39,11 @@
 #define TIME_LCD_MS             500
 #define TIME_CYCLECOUNT_MS      1000
 #define TIME_EEPROM_WRITE_MS    30000
-#define TIME_STAND_MS           1000
+#define TIME_STAND_MS           500
 #define DELAY_BEFORE_STAND_MS   5
 #define TIME_ERROR_MS           50
 #define TIME_BLINK_LCD          150
-#define TIME_SLEEP_S            300 //60*5
+#define TIME_SLEEP_S            360 //60*6
 
 //THRESHOLDS
 #define THRESHOLD_STAND         300      //adc value
@@ -135,7 +135,7 @@ byte button_count[5];
 boolean meas_flag;
 
 boolean sleep_flag;
-long    sleep_counter;
+long    sleep_counter = TIME_SLEEP_S;
 boolean status_stand_reed;
 boolean status_stand_manu = true;  //start with standby
 
@@ -531,12 +531,14 @@ void loop()
     cycle = 0;
 
     if (status_stand_reed || status_stand_manu) {
-      sleep_counter++;
+      if (sleep_counter > 0) {
+        sleep_counter--;
+      }
     }
     else {
-      sleep_counter = 0;
+      sleep_counter = TIME_SLEEP_S;
     }
-    if (sleep_counter > TIME_SLEEP_S) {
+    if (sleep_counter == 0) {
       sleep_flag = true;
     }
     else {
@@ -734,7 +736,15 @@ void loop()
           lcd.print("OFF ");
         }
         else {
-          lcd.print("STBY");
+          if (sleep_counter > 60) {
+            lcd.print("STBY");
+          }
+          else {
+            lcd.print(" ");
+            if (sleep_counter < 10) lcd.print(" ");
+            lcd.print(sleep_counter);
+            lcd.print(" ");
+          }
         }
       }
       else {
