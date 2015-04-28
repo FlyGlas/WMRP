@@ -237,10 +237,11 @@ byte arrow_char[8] = {
   0b00100
 };
 
-const byte eeprom_address[3] = { EEPROM_ADDRESS_VAL1_START,
-                                 EEPROM_ADDRESS_VAL2_START,
-                                 EEPROM_ADDRESS_VAL3_START
-                               };
+const byte eeprom_address[3] = {
+  EEPROM_ADDRESS_VAL1_START,
+  EEPROM_ADDRESS_VAL2_START,
+  EEPROM_ADDRESS_VAL3_START
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //CLASSES
