@@ -523,7 +523,7 @@ void isr_routine()
 
 void loop()
 {
-  digitalWrite(DEBUG_LED, !digitalRead(DEBUG_LED));
+  //digitalWrite(DEBUG_LED, !digitalRead(DEBUG_LED));
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   if (timer_cyclecount.over(TIME_CYCLECOUNT_MS)) {
@@ -773,7 +773,7 @@ void loop()
     }
 
     //pwm in percent (0,1,2), % (3), blank (4), bargraph (5-15)
-    pwm_percent = map(pwm_value, 0, PWM_MAX_VALUE, 0, 100);
+    pwm_percent = map(pwm_value_mean, 0, PWM_MAX_VALUE, 0, 100);
     lcd.setCursor(1, 1); //Start at character 0 on line 1
     if (pwm_percent < 10)  lcd.print(" ");
     if (pwm_percent < 100) lcd.print(" ");
@@ -782,6 +782,14 @@ void loop()
 
     lcd.setCursor(6, 1); //Start at character 5 on line 1
     draw_bar(pwm_percent, 10, 100);
+
+    //toogle led if in temperature range...
+    if (abs(temp_setpoint - (int)(temperature_tip_absolute / 1000)) < BAND_TARGET_TEMP_GRAD) {
+      digitalWrite(DEBUG_LED, true);
+    }
+    else {
+      digitalWrite(DEBUG_LED, false);
+    }
   }
 
 
