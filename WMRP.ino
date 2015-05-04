@@ -101,12 +101,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "TimerOne.h"
-#include <EEPROM.h>
-#include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include "TimerOne.h"          //Version r11   --> http://code.google.com/p/arduino-timerone/
+#include <EEPROM.h>            //Included in Arduino IDE Version 1.6.0
+#include <Wire.h>              //Included in Arduino IDE Version 1.6.0
+#include <LiquidCrystal_I2C.h> //Version 1.2.1 --> https://bitbucket.org/fmalpartida/new-liquidcrystal/downloads
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
-#include <Encoder.h>
+#include <Encoder.h>           //Version 1.2   --> http://www.pjrc.com/teensy/td_libs_Encoder.html
 Encoder enc(PIN_ROT_A, PIN_ROT_B);
 
 //GLOBAL VARIABLES
@@ -285,6 +285,7 @@ timer_over timer_blink_lcd;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //FUNCTIONS
 
+//Original code for bargraph --> http://playground.arduino.cc/Code/LcdBarGraph
 void draw_bar(int value, byte numCols, int maxValue) {
   static int prevValue;
   static byte lastFullChars;
