@@ -1,4 +1,4 @@
-# Arduino Code for WMRP-Solder Station
+# Hardware and Arduino Code for DIY WMRP-Solder Station
 Code is still under construction.  
 The BOM in the layout folder includes only the parts on the PCB.
 
