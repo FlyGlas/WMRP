@@ -20,6 +20,8 @@ Features:
 * 4mm safety socket for power supply and potential equalisation (ESD protection)
 
 Photos:
+![outside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150507_002144.jpg "outside")
+
 ![outside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150412_134210.jpg "outside")
 
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150411_152047.jpg "inside")
