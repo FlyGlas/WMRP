@@ -1,6 +1,6 @@
 # Hardware and Arduino Code for DIY WMRP-Solder Station
-Code is still under construction.  
-The BOM in the layout folder includes only the parts on the PCB.
+
+The BOM in the layout folder includes only the parts on the PCB(s).
 
 Video: https://www.youtube.com/watch?v=le2HaKJ6B1A
 
@@ -17,7 +17,15 @@ Features:
 * illuminated 16x2 character LCD module
 * USB for debugging and firmware update
 * clean and small enclosure
-* 4mm safety socket for power supply and potential equalisation (ESD protection)
+* 4 mm safety socket for power supply and potential equalisation (ESD protection)
+
+Parts (not on pcb):
+* lcd display from ebay "Blue I2C 1602"
+* modified connector "Amphenol T 3437 000" (http://www.mikrocontroller.net/topic/143288#1500819)
+* 4 mm safety sockets (red, black, green/yellow)
+* rotary encoder knob
+* display frame "EA027-2UKE"
+* aluminium enclosure "Proma 131020"
 
 Photos:
 ![outside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150507_002144.jpg "outside")
