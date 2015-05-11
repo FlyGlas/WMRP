@@ -4,6 +4,7 @@ Video: https://www.youtube.com/watch?v=le2HaKJ6B1A
 
 If you have any questions, please feel free to contact me: flyglas (at) gmail (dot) com
 
+
 Features:
 * low offset op amp for soldering tip temperature measurement with thermocouple type c
 * cold junction compensation with PTC (KTY82-210) included in the WMRP soldering pencil
@@ -17,9 +18,10 @@ Features:
 * clean and small enclosure
 * 4 mm safety socket for power supply and potential equalisation (ESD protection)
 
+
 The BOM in the layout folder includes only the parts on the PCB(s).
 
-Parts (not on pcb):
+Parts (not on PCB):
 * lcd display from ebay "Blue I2C 1602"
 * modified connector "Amphenol T 3437 000" (http://www.mikrocontroller.net/topic/143288#1500819)
 * 4 mm safety sockets (red, black, green/yellow)
