@@ -34,6 +34,7 @@ Photos:
 
 ![outside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150412_134210.jpg "outside")
 
+The PCB is a little bit dirty. The Isopropanol was empty and now everything is in the enclosure.
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150411_152047.jpg "inside")
 
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150411_152116.jpg "inside")
