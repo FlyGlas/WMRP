@@ -6,17 +6,17 @@ If you have any questions, please feel free to contact me: flyglas (at) gmail (d
 
 
 Features:
-* low offset op amp for soldering tip temperature measurement with thermocouple type c
-* cold junction compensation with PTC (KTY82-210) included in the WMRP soldering pencil
+* low offset op amp for soldering tip temperature measurement with type c thermocouple
+* cold junction compensation using the PTC (KTY82-210) included in the WMRP soldering pencil
 * input voltage measurement (for use with 3 cell lipo battery)
-* input current measurement 
+* soldering pencil current measurement 
 * recognizing if the soldering pencil rests in the stand (--> standby)
 * 3 buttons for save and recall temperature values
-* rotary encoder changes the soldering temperature 
+* rotary encoder to set soldering temperature
 * illuminated 16x2 character LCD module
 * USB for debugging and firmware update
 * clean and small enclosure
-* 4 mm safety socket for power supply and potential equalisation (ESD protection)
+* 4mm safety socket for +12V power input and a protective earth socket for connection to ESD protection
 
 
 The BOM in the layout folder includes only the parts on the PCB(s).
@@ -24,7 +24,7 @@ The BOM in the layout folder includes only the parts on the PCB(s).
 Parts (not on PCB):
 * lcd display from ebay "Blue I2C 1602"
 * modified connector "Amphenol T 3437 000" (http://www.mikrocontroller.net/topic/143288#1500819)
-* 4 mm safety sockets (red, black, green/yellow)
+* 4mm safety sockets (red, black, green/yellow)
 * rotary encoder knob
 * display frame "EA027-2UKE"
 * aluminium enclosure "Proma 131020"
