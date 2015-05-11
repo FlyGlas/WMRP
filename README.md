@@ -1,7 +1,5 @@
 # Hardware and Arduino Code for DIY WMRP-Solder Station
 
-The BOM in the layout folder includes only the parts on the PCB(s).
-
 Video: https://www.youtube.com/watch?v=le2HaKJ6B1A
 
 If you have any questions, please feel free to contact me: flyglas (at) gmail (dot) com
@@ -18,6 +16,8 @@ Features:
 * USB for debugging and firmware update
 * clean and small enclosure
 * 4 mm safety socket for power supply and potential equalisation (ESD protection)
+
+The BOM in the layout folder includes only the parts on the PCB(s).
 
 Parts (not on pcb):
 * lcd display from ebay "Blue I2C 1602"
