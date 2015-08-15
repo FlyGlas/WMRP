@@ -1,5 +1,5 @@
 // some preprocessor defines
-#define SW_VERSION      "Version 1.2b"
+#define SW_VERSION      "Version 1.2c"
 #define DEBUG           true
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
@@ -112,6 +112,7 @@ Encoder enc(PIN_ROT_A, PIN_ROT_B);
 //GLOBAL VARIABLES
 long    temperature_tip_absolute;
 int adc_temperature_tip_relative;
+int adc_temperature_tip_relative_old;
 long    temperature_tip_relative;
 int adc_temperature_grip;
 long    temperature_grip;
@@ -577,6 +578,7 @@ void loop()
     meas_flag = false;
     //delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap (the hard way with delays)
     adc_temperature_grip         = analogRead(PIN_ADC_T_GRIP);
+    adc_temperature_tip_relative_old = adc_temperature_tip_relative;
     adc_temperature_tip_relative = (analogRead(PIN_ADC_T_TIP)
                                     + analogRead(PIN_ADC_T_TIP)
                                     + analogRead(PIN_ADC_T_TIP)
@@ -853,13 +855,15 @@ void loop()
 
     if (!sleep_flag) {
       if (adc_temperature_tip_relative < 30) {
-        if (temp_flag == true) { 			                  //adc_temperature_tip_relative < 30 but was > 100 before
+        if (temp_flag == true) { 			         //adc_temperature_tip_relative < 30 but was > 100 before
           error_tip = true;
+          //Serial.println("ERROR: Temperature drop below 30 digits.");
         }
-        else {						         //adc_temperature_tip_relative < 30 and never before > 100
+        else {						        //adc_temperature_tip_relative < 30 and never before > 100
           error_counter++;
-          if (error_counter > ERROR_COUNTER_THRESHOLD) { 		//error after x cycles without adc_temperature_tip_relative > 100
+          if (error_counter > ERROR_COUNTER_THRESHOLD) { 	//error after x cycles without adc_temperature_tip_relative > 100
             error_tip = true;
+            //Serial.println("ERROR: Temperature rise at startup not fast enought.");
             error_counter = 0;
           }
         }
@@ -874,14 +878,26 @@ void loop()
 
     if (adc_temperature_tip_relative > 900) {
       no_tip = true;
+      //Serial.println("ERROR: Tip temperature greater than 900 digitis.");
       //error_tip = false;
     }
     else {
       no_tip = false;
     }
 
+    if ((adc_temperature_tip_relative + 80) < adc_temperature_tip_relative_old) { //1K = 2 ADC digits
+      error_tip = true;
+      //Serial.println("ERROR: Last tip temperature 80 digits greater than actual temperatur.");
+    }
+
+    if (adc_temperature_grip < 500 || adc_temperature_grip > 755) { //t_grip < ~-10°C or t_grip > ~60°C
+      error_tip = true;
+      //Serial.println("ERROR: Grip temperature under -10C or above 60C.");
+    }
+
     if (voltage_input < VOLTAGE_TRESHOLD && pwm_value > 0) {
       error_voltage = true;
+      //Serial.println("ERROR: Battery undervoltage.");
     }
   }
 
