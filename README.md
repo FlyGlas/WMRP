@@ -23,11 +23,16 @@ The BOM in the layout folder includes only the parts on the PCB(s).
 
 Parts (not on PCB):
 * lcd display from ebay "Blue I2C 1602"
-* modified connector "Amphenol T 3437 000" (http://www.mikrocontroller.net/topic/143288#1500819)
-* 4mm safety sockets (red, black, green/yellow)
+* modified connector "Amphenol T 3437 000" (--> http://www.mikrocontroller.net/topic/143288#1500819)
+* 4mm safety sockets (red, black, green/yellow) or any other suitable connector
 * rotary encoder knob
 * display frame "EA027-2UKE"
 * aluminium enclosure "Proma 131020"
+
+Info:
+* close jumper JP1 (activates pullup resistors for I2C wires)
+* close jumper JP3 (connection between power ground and analog ground)
+* leave jumper JP2 open (alternative for JP3)
 
 Photos:
 ![outside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150507_002144.jpg "outside")
