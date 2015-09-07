@@ -1,5 +1,5 @@
 // some preprocessor defines
-#define SW_VERSION      "Version 1.2c"
+#define SW_VERSION      "Version 1.2d"
 #define DEBUG           true
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
@@ -44,10 +44,11 @@
 #define TIME_ERROR_MS           50
 #define TIME_BLINK_LCD          150
 #define TIME_SLEEP_S            360 //60*6
+#define TIME_VERSION            2000
 
 //THRESHOLDS
 #define THRESHOLD_STAND         300      //adc value
-#define ERROR_COUNTER_THRESHOLD 20       //* TIME_ERROR_MS (50) = 1000ms
+#define ERROR_COUNTER_THRESHOLD 30       //* TIME_ERROR_MS (50) = 1500ms
 #define VOLTAGE_TRESHOLD        10500000 //10.5V
 
 //PID CONTROL - SOLDERING
@@ -487,6 +488,7 @@ void setup()
 
   delay(100);
   adc_current_heater_offset = analogRead(PIN_ADC_I_HEATER); //read adc offset for current measurement @ I_HEATER = 0 A
+  adc_temperature_grip      = analogRead(PIN_ADC_T_GRIP);   //read grip temperatur to avoid error at startup
 
   temp_setpoint = eeprom_read_int(EEPROM_ADDRESS_TEMP_START); //read eeprom
   temp_setpoint_old = temp_setpoint;
@@ -514,7 +516,7 @@ void setup()
   lcd.write("WMRP STATION");
   lcd.setCursor(2, 1); //Start at character 0 on line 0
   lcd.write(SW_VERSION);
-  delay(1000);
+  delay(TIME_VERSION);
   lcd.clear();
 }
 
@@ -857,7 +859,7 @@ void loop()
       if (adc_temperature_tip_relative < 30) {
         if (temp_flag == true) { 			         //adc_temperature_tip_relative < 30 but was > 100 before
           error_tip = true;
-          //Serial.println("ERROR: Temperature drop below 30 digits.");
+          Serial.println("ERROR: Temperature droped below 30 digits.");
         }
         else {						        //adc_temperature_tip_relative < 30 and never before > 100
           error_counter++;
