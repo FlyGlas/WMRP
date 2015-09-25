@@ -482,7 +482,7 @@ void setup()
   pinMode(PIN_ADC_STAND, INPUT);
 
 
-  Timer1.initialize(TIMER1_PERIOD_US); //initialize timer1, and set a 500 second period == 2 kHz
+  Timer1.initialize(TIMER1_PERIOD_US); //initialize timer1, and set a 50 second period == 20 kHz
   Timer1.attachInterrupt(isr_routine); //attaches callback() as a timer overflow interrupt
   Timer1.pwm(PIN_HEATER, 0);           //setup pwm pin, 0 % duty cycle
 

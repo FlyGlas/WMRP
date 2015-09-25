@@ -7,7 +7,7 @@ If you have any questions, please feel free to contact me: flyglas (at) gmail (d
 
 Features:
 * low offset op amp for soldering tip temperature measurement with type c thermocouple
-* cold junction compensation using the PTC (KTY82-210) included in the WMRP soldering pencil
+* cold junction compensation using the PTC (KTY82-110) included in the WMRP soldering pencil
 * input voltage measurement (for use with 3 cell lipo battery)
 * soldering pencil current measurement 
 * recognizing if the soldering pencil rests in the stand (--> standby)
