@@ -43,3 +43,10 @@ The PCB is a little bit dirty. The Isopropanol was empty and now everything is i
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150411_152047.jpg "inside")
 
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150411_152116.jpg "inside")
+
+Stand for enclosure Proma 131020:
+![inside](https://github.com/FlyGlas/WMRP/blob/master/stand/IMG_20150928_124547.jpg "inside")
+
+![inside](https://github.com/FlyGlas/WMRP/blob/master/stand/IMG_20150928_125554.jpg "inside")
+
+![inside](https://github.com/FlyGlas/WMRP/blob/master/stand/wmrp_stand_30deg.png "inside")
