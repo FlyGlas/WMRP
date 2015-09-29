@@ -68,7 +68,7 @@
 #define MIN_TARGET_TEMP_DEG    150
 #define MAX_TARGET_TEMP_DEG    450
 
-//PWM MAX
+//PWM MAX (1023 in normal operation; 0-1023 for testing purposes with reduced power)
 #define PWM_MAX_VALUE          1023
 
 //ADC TO TIP TEMPERATURE CONVERSION --> OLD
@@ -95,10 +95,13 @@
 //                                                I_heater[A] = (adc_value * 4 mV - UVCC/2[mV])/(220 mV/A)
 //                                         10^6 * I_heater[A] = (adc_value - adc_value(@i=0A)) * 18182
 
+//HARDWARE BASED VALUES
 //#define OPAMP_T_TIP_GAIN    431.0
 //#define OPAMP_T_GRIP_GAIN   2.0
 //#define OPAMP_I_HEATER_GAIN 2.2
-#define ADC_T_TIP_OFFSET_COMP 21
+
+//COMPENSATION VALUE
+#define ADC_T_TIP_OFFSET_COMP 21   //offset measured when thermocouple and cold junction are at the same temperature
 
 //EEPROM ADDRESS
 #define EEPROM_ADDRESS_TEMP_START   0
@@ -701,6 +704,7 @@ void loop()
     }
     if (1) {
       //serial data for visualization in serial monitor
+      //Serial.println(adc_temperature_tip_relative);
       Serial.print("Input Voltage:       ");
       Serial.println((float)voltage_input / 1000000, 3);
       Serial.print("Heater Current:      ");
