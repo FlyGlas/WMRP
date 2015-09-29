@@ -1,1 +1,0 @@
-Settling time of the thermocouple amplifier output in the heating pause is about 1.8 ms. No picture.
