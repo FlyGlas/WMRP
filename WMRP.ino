@@ -1,5 +1,5 @@
 // some preprocessor defines
-#define SW_VERSION      "Version 1.2d"
+#define SW_VERSION      "Version 1.3a"
 #define DEBUG           true
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
@@ -71,11 +71,11 @@
 //PWM MAX
 #define PWM_MAX_VALUE          1023
 
-//ADC TO TIP TEMPERATURE CONVERSION
-#define ADC_TO_T_TIP_A0  -1176200 //                  T[degC] = -1176.2 + 3.34 * SQRT(14978 * U[mV] + 130981)
-#define ADC_TO_T_TIP_A1  3340     //                    U[mV] = adc_value * 4mV * 1/OPAMP_T_TIP_GAIN
-#define ADC_TO_T_TIP_A2  139      //           10^3 * T[degC] = -1176200 + 3340 * SQRT(139 * adc_value + 130981)
-#define ADC_TO_T_TIP_A3  130981
+//ADC TO TIP TEMPERATURE CONVERSION --> OLD
+//#define ADC_TO_T_TIP_A0  -1176200 //                  T[degC] = -1176.2 + 3.34 * SQRT(14978 * U[mV] + 130981)
+//#define ADC_TO_T_TIP_A1  3340     //                    U[mV] = adc_value * 4mV * 1/OPAMP_T_TIP_GAIN
+//#define ADC_TO_T_TIP_A2  139      //           10^3 * T[degC] = -1176200 + 3340 * SQRT(139 * adc_value + 130981)
+//#define ADC_TO_T_TIP_A3  130981
 
 //ADC TO GRIP TEMPERATURE CONVERSION
 #define ADC_TO_T_GRIP_A0 289      //                  T[degC] = (U[V] - 1.1073) * 1000/6.91
@@ -95,9 +95,10 @@
 //                                                I_heater[A] = (adc_value * 4 mV - UVCC/2[mV])/(220 mV/A)
 //                                         10^6 * I_heater[A] = (adc_value - adc_value(@i=0A)) * 18182
 
-//#define OPAMP_T_TIP_GAIN    431
-//#define OPAMP_T_GRIP_GAIN   2
+//#define OPAMP_T_TIP_GAIN    431.0
+//#define OPAMP_T_GRIP_GAIN   2.0
 //#define OPAMP_I_HEATER_GAIN 2.2
+#define ADC_T_TIP_OFFSET_COMP 24
 
 //EEPROM ADDRESS
 #define EEPROM_ADDRESS_TEMP_START   0
@@ -124,13 +125,15 @@ Encoder enc(PIN_ROT_A, PIN_ROT_B);
 long    temperature_tip_absolute;
 int adc_temperature_tip_relative;
 int adc_temperature_tip_relative_old;
-long    temperature_tip_relative;
 int adc_temperature_grip;
 long    temperature_grip;
 int adc_voltage_input;
 long    voltage_input;
 int adc_current_heater;
 long    current_heater;
+
+static float TempC_to_Emf_TypeD[6];
+static float Emf_to_TempC_TypeD[7];
 
 int adc_current_heater_offset;
 int pwm_value;
@@ -394,10 +397,13 @@ int calculate_pid(int setpoint, int input, float kp, float ki, float kd, int sam
 }
 
 
-long adc_to_t_tip_calc(int adc_value) {
-  long t_tip = ADC_TO_T_TIP_A0 + (ADC_TO_T_TIP_A1 * sqrt((ADC_TO_T_TIP_A2 * (long)adc_value) + ADC_TO_T_TIP_A3));
-  //Serial.println((float)t_tip / 1000, 3);
-  return t_tip;
+float PolyEval(float x, float *Coeffs, unsigned int Degree) {
+  float pol = 0.0;
+  for (int i = Degree; i >= 0; i--)
+  {
+    pol = pol * x + Coeffs[i];
+  }
+  return pol;
 }
 
 
@@ -461,6 +467,23 @@ void eeprom_write_int(int addr, int value) {
 
 void setup()
 {
+  //DEFINE COEFFICIENTS
+  TempC_to_Emf_TypeD[0] =  0.0000000E+0;
+  TempC_to_Emf_TypeD[1] =  9.5685256E-3;
+  TempC_to_Emf_TypeD[2] =  2.0592621E-5;
+  TempC_to_Emf_TypeD[3] = -1.8464576E-8;
+  TempC_to_Emf_TypeD[4] =  7.9498033E-12;
+  TempC_to_Emf_TypeD[5] = -1.4240735E-15;
+
+
+  Emf_to_TempC_TypeD[0] =  7.407745239E-1;
+  Emf_to_TempC_TypeD[1] =  9.827743947E+1;
+  Emf_to_TempC_TypeD[2] = -1.223274978E+1;
+  Emf_to_TempC_TypeD[3] =  1.930483337E+0;
+  Emf_to_TempC_TypeD[4] = -1.825482304E-1;
+  Emf_to_TempC_TypeD[5] =  9.140368153E-3;
+  Emf_to_TempC_TypeD[6] = -1.851682378E-4;
+
   //USE EXTERNAL AREF
   analogReference(EXTERNAL);
 
@@ -589,13 +612,18 @@ void loop()
   if (timer_delay_before_measure.over(DELAY_BEFORE_MEASURE_MS) && meas_flag) {
     meas_flag = false;
     //delay(DELAY_BEFORE_MEASURE_MS);   //wait for steady state of all filters and opmap (the hard way with delays)
-    adc_temperature_grip         = analogRead(PIN_ADC_T_GRIP);
+    adc_temperature_grip         = (analogRead(PIN_ADC_T_GRIP)
+                                    + analogRead(PIN_ADC_T_GRIP)
+                                    + analogRead(PIN_ADC_T_GRIP)
+                                    + analogRead(PIN_ADC_T_GRIP)
+                                    + analogRead(PIN_ADC_T_GRIP)) / 5;
     adc_temperature_tip_relative_old = adc_temperature_tip_relative;
     adc_temperature_tip_relative = (analogRead(PIN_ADC_T_TIP)
                                     + analogRead(PIN_ADC_T_TIP)
                                     + analogRead(PIN_ADC_T_TIP)
                                     + analogRead(PIN_ADC_T_TIP)
                                     + analogRead(PIN_ADC_T_TIP)) / 5;
+    adc_temperature_tip_relative -= ADC_T_TIP_OFFSET_COMP;
 
     //code for stand recognition....
     if (timer_stand.over(TIME_STAND_MS)) {
@@ -614,13 +642,12 @@ void loop()
     Timer1.setPwmDuty(PIN_HEATER, pwm_value); //set pwm back to old value
 
     //calculate SI values from the adc value
-    temperature_tip_relative = adc_to_t_tip_calc(adc_temperature_tip_relative);                     //temperature in grad celsius divide with 1000
     temperature_grip         = adc_to_t_grip_calc(adc_temperature_grip);                            //temperature in grad celsius divide with 1000
     voltage_input            = adc_to_u_in_calc(adc_voltage_input);                                 //voltage in volt divide with 10^6
     current_heater           = adc_to_i_heater_calc(adc_current_heater, adc_current_heater_offset); //current in volt divide with 10^6
 
-    //calculate real tip temperature as sum of thermo couple temperature and cold junction temperature
-    temperature_tip_absolute = temperature_tip_relative + temperature_grip;
+    //calculate real tip temperature as sum of thermo couple voltage and cold junction voltage
+    temperature_tip_absolute = 1000 * PolyEval((float)adc_temperature_tip_relative * 4.0 / 431.0 + PolyEval((float)temperature_grip / 1000.0, TempC_to_Emf_TypeD, 5), Emf_to_TempC_TypeD, 6); //temperature in grad celsius divide with 1000
 
     //temp_setpoint = constrain(temp_setpoint, MIN_TARGET_TEMP_DEG, MAX_TARGET_TEMP_DEG);
     if (status_stand_reed || status_stand_manu) {
@@ -680,8 +707,6 @@ void loop()
       Serial.println((float)current_heater / 1000000, 3);
       Serial.print("Temp Grip:           ");
       Serial.println((float)temperature_grip / 1000, 3);
-      Serial.print("Temp Tip (relative): ");
-      Serial.println((float)temperature_tip_relative / 1000, 3);
       Serial.print("Temp Tip (absolute): ");
       Serial.println((float)temperature_tip_absolute / 1000, 3);
       Serial.print("Setpoint Temp:       ");
