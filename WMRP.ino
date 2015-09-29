@@ -1,5 +1,5 @@
 // some preprocessor defines
-#define SW_VERSION      "Version 1.3b"
+#define SW_VERSION      "Version 1.3c"
 #define DEBUG           true
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
@@ -704,7 +704,8 @@ void loop()
     }
     if (1) {
       //serial data for visualization in serial monitor
-      //Serial.println(adc_temperature_tip_relative);
+      Serial.print("ADC Temp Tip:        ");
+      Serial.println(adc_temperature_tip_relative);
       Serial.print("Input Voltage:       ");
       Serial.println((float)voltage_input / 1000000, 3);
       Serial.print("Heater Current:      ");
