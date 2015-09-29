@@ -71,20 +71,30 @@
 //PWM MAX
 #define PWM_MAX_VALUE          1023
 
-//ADC TO TEMP CONVERSION
-#define ADC_TO_T_TIP_A0  -1176200 //inverse function: t[*C] = - 1176.2 + 3.34 * SQRT(14978 * U[mV] + 130981)
-#define ADC_TO_T_TIP_A1  3340     //                  u[mV] = adc_value * 4mV * 1/OPAMP_T_TIP_GAIN
-#define ADC_TO_T_TIP_A2  139      //           1000 * t[*C] = -1176200 + 3340 * SQRT(139 * adc_value + 130981)
+//ADC TO TIP TEMPERATURE CONVERSION
+#define ADC_TO_T_TIP_A0  -1176200 //                  T[degC] = -1176.2 + 3.34 * SQRT(14978 * U[mV] + 130981)
+#define ADC_TO_T_TIP_A1  3340     //                    U[mV] = adc_value * 4mV * 1/OPAMP_T_TIP_GAIN
+#define ADC_TO_T_TIP_A2  139      //           10^3 * T[degC] = -1176200 + 3340 * SQRT(139 * adc_value + 130981)
 #define ADC_TO_T_TIP_A3  130981
-#define ADC_TO_T_GRIP_A0 289      //inverse function: t[*C] = (u[V] - 1.1073) * 1000/6.91
-#define ADC_TO_T_GRIP_A1 -160246  //                   u[V] = adc_value * 4mV/1000 * 1/OPAMP_T_GRIP_GAIN
-//                                             1000 * t[*C] = adc_value * 289.435 - 160246
-#define ADC_TO_U_IN_A0 14213      //               U_adc[V] = U_IN[V] * 4700/(4700 + 12000); U_adc[V] = adc_value * 4 mV/1000
-//                                                  U_IN[V] = adc_value * 4 mV/1000 *(4700 + 1200)/4700
-//                                           10^6 * U_IN[V] = adc_value * 14213
-#define ADC_TO_I_HEATER_A0 18182  //              U_adc[mV] = UVCC/2[mV] + I_HEATER[A] * 220 mV/A; U_adc[mV] = adc_value * 4 mV
-//                                              I_HEATER[A] = (adc_value * 4 mV - UVCC/2)/(220 mV/A); UVCC/2[mV] = adc_value(@i=0A) * 4 mV
-//                                       10^6 * I_HEATER[A] = (adc_value - adc_value(@i=0A)) * 18182
+
+//ADC TO GRIP TEMPERATURE CONVERSION
+#define ADC_TO_T_GRIP_A0 289      //                  T[degC] = (U[V] - 1.1073) * 1000/6.91
+#define ADC_TO_T_GRIP_A1 -160246  //                     U[V] = adc_value * 4 V/1000 * 1/OPAMP_T_GRIP_GAIN
+//                                             10^3 * T[degC] = adc_value * 289.435 - 160246
+
+//ADC TO INPUT VOLTAGE CONVERSION
+#define ADC_TO_U_IN_A0 14213      //                 U_adc[V] = U_in[V] * 4700/(4700 + 12000);
+//                                                   U_adc[V] = adc_value * 4 V/1000
+//                                                    U_in[V] = adc_value * 4 V/1000 *(4700 + 12000)/4700
+//                                             10^6 * U_in[V] = adc_value * 14212,77
+
+//ADC TO INPUT CURRENT CONVERSION
+#define ADC_TO_I_HEATER_A0 18182  //                U_adc[mV] = UVCC/2[mV] + I_heater[A] * 220 mV/A
+//                                                  U_adc[mV] = adc_value * 4 mV
+//                                                 UVCC/2[mV] = adc_value(@i=0A) * 4 mV
+//                                                I_heater[A] = (adc_value * 4 mV - UVCC/2[mV])/(220 mV/A)
+//                                         10^6 * I_heater[A] = (adc_value - adc_value(@i=0A)) * 18182
+
 //#define OPAMP_T_TIP_GAIN    431
 //#define OPAMP_T_GRIP_GAIN   2
 //#define OPAMP_I_HEATER_GAIN 2.2
@@ -603,7 +613,7 @@ void loop()
 
     Timer1.setPwmDuty(PIN_HEATER, pwm_value); //set pwm back to old value
 
-    //calculate SI values form the adc value
+    //calculate SI values from the adc value
     temperature_tip_relative = adc_to_t_tip_calc(adc_temperature_tip_relative);                     //temperature in grad celsius divide with 1000
     temperature_grip         = adc_to_t_grip_calc(adc_temperature_grip);                            //temperature in grad celsius divide with 1000
     voltage_input            = adc_to_u_in_calc(adc_voltage_input);                                 //voltage in volt divide with 10^6
