@@ -1,5 +1,5 @@
 // some preprocessor defines
-#define SW_VERSION      "Version 1.3a"
+#define SW_VERSION      "Version 1.3b"
 #define DEBUG           true
 //DIGITAL INPUT PINS
 // Values after the // are the one for my pcb. Other for debugging on Arduino Uno!
@@ -98,7 +98,7 @@
 //#define OPAMP_T_TIP_GAIN    431.0
 //#define OPAMP_T_GRIP_GAIN   2.0
 //#define OPAMP_I_HEATER_GAIN 2.2
-#define ADC_T_TIP_OFFSET_COMP 24
+#define ADC_T_TIP_OFFSET_COMP 21
 
 //EEPROM ADDRESS
 #define EEPROM_ADDRESS_TEMP_START   0
