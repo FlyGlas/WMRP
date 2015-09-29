@@ -1,1 +1,1 @@
-This folder contains pictures of the stand and the dex-file for.
+This folder contains pictures of the stand and the dxf-file for production.
