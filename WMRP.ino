@@ -119,7 +119,7 @@
 #include "TimerOne.h"          //Version r11   --> http://code.google.com/p/arduino-timerone/
 #include <EEPROM.h>            //Included in Arduino IDE Version 1.6.0
 #include <Wire.h>              //Included in Arduino IDE Version 1.6.0
-#include <LiquidCrystal_I2C.h> //Version 1.2.1 --> https://bitbucket.org/fmalpartida/new-liquidcrystal/downloads
+#include <LiquidCrystal_I2C.h> //Version 1.2.1 or 1.3.3 --> https://bitbucket.org/fmalpartida/new-liquidcrystal/downloads
 LiquidCrystal_I2C lcd(0x27, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);  // Set the LCD I2C address
 #include <Encoder.h>           //Version 1.2   --> http://www.pjrc.com/teensy/td_libs_Encoder.html
 Encoder enc(PIN_ROT_A, PIN_ROT_B);
