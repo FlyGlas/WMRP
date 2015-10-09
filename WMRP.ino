@@ -31,7 +31,7 @@
 //#define PIN_TXO        1
 
 //TIMES
-#define TIMER1_PERIOD_US        50
+#define TIMER1_PERIOD_US        50 //20KHz
 #define DELAY_BEFORE_MEASURE_MS 5
 #define TIME_SW_POLL_MS         10
 #define TIME_TUI_MEAS_MS        100
@@ -68,8 +68,8 @@
 #define MIN_TARGET_TEMP_DEG    150
 #define MAX_TARGET_TEMP_DEG    450
 
-//PWM MAX (1023 in normal operation; 0-1023 for testing purposes with reduced power)
-#define PWM_MAX_VALUE          1023
+//PWM MAX (1024 in normal operation; 0-1024 for testing purposes with reduced power)
+#define PWM_MAX_VALUE          1024
 
 //ADC TO TIP TEMPERATURE CONVERSION --> OLD
 //#define ADC_TO_T_TIP_A0  -1176200 //                  T[degC] = -1176.2 + 3.34 * SQRT(14978 * U[mV] + 130981)
@@ -518,7 +518,7 @@ void setup()
   pinMode(PIN_ADC_STAND, INPUT);
 
 
-  Timer1.initialize(TIMER1_PERIOD_US); //initialize timer1, and set a 50 second period == 20 kHz
+  Timer1.initialize(TIMER1_PERIOD_US); //initialize timer1
   Timer1.attachInterrupt(isr_routine); //attaches callback() as a timer overflow interrupt
   Timer1.pwm(PIN_HEATER, 0);           //setup pwm pin, 0 % duty cycle
 
