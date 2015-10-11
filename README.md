@@ -52,5 +52,6 @@ Stand for enclosure Proma 131020:
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/stand/wmrp_stand_30deg.png "inside")
 
 __First picture of a replica:__
+
 Thank you Dennis for the nice conversation and the picture.
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/pictures/diy_wmrp_dennis.jpg "inside")
