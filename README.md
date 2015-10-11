@@ -5,7 +5,7 @@ Video: https://www.youtube.com/watch?v=le2HaKJ6B1A
 If you have any questions, please feel free to contact me: flyglas (at) gmail (dot) com
 
 
-Features:
+__Features:__
 * low offset op amp for soldering tip temperature measurement with type D thermocouple
 * cold junction compensation using the PTC (KTY82-110) included in the WMRP soldering pencil
 * input voltage measurement (for use with 3 cell lipo battery)
@@ -21,7 +21,7 @@ Features:
 
 The BOM in the layout folder includes only the parts on the PCB(s).
 
-Parts (not on PCB):
+__Parts (not on PCB):__
 * lcd display from ebay "Blue I2C 1602"
 * modified connector "Amphenol T 3437 000" (--> http://www.mikrocontroller.net/topic/143288#1500819)
 * 4mm safety sockets (red, black, green/yellow) or any other suitable connector
@@ -29,12 +29,12 @@ Parts (not on PCB):
 * display frame "EA027-2UKE"
 * aluminium enclosure "Proma 131020"
 
-Info:
+__Info:__
 * close jumper JP1 (activates pullup resistors for I2C wires)
 * close jumper JP3 (connection between power ground and analog ground)
 * leave jumper JP2 open (alternative for JP3)
 
-Photos:
+__Photos:__
 ![outside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150507_002144.jpg "outside")
 
 ![outside](https://github.com/FlyGlas/WMRP/blob/master/pictures/IMG_20150412_134210.jpg "outside")
@@ -50,3 +50,7 @@ Stand for enclosure Proma 131020:
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/stand/IMG_20150928_125554.jpg "inside")
 
 ![inside](https://github.com/FlyGlas/WMRP/blob/master/stand/wmrp_stand_30deg.png "inside")
+
+__First picture of a replica:__
+Thank you Dennis for the nice conversation and the picture.
+![inside](https://github.com/FlyGlas/WMRP/blob/master/pictures/diy_wmrp_dennis.jpg "inside")
